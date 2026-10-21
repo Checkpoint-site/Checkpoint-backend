@@ -63,12 +63,13 @@ Dentro das camadas, as funcionalidades são separadas de forma modular pelos con
 
 ```text
 Checkpoint-backend/
-├── src/
-│   ├── Api/            # Minimal APIs (Endpoints, Middlewares, Program.cs)
-│   ├── Application/    # Services, Use Cases e DTOs
-│   ├── Domain/         # Entidades, Value Objects e Interfaces de Repositório
-│   └── Persistence/    # DbContext, Migrations, Repositories e Steam API Client
-├── tests/
+├── Api/            # Minimal APIs (Endpoints, Middlewares, Extensions, Program.cs)
+├── Application/    # Services, Use Cases, DTOs e Utils
+├── Domain/         # Model, ValueObject, Interfaces/Repository e Exceptions
+├── Persistence/    # Context, Configuration, Migrations, Repository e Steam API Client
+├── Test/           # Testes automatizados (xUnit) organizados por camada
+├── .editorconfig   # Padronização de estilo e formatação de código
+├── AGENTS.md       # Diretrizes arquiteturais e operacionais para agentes de IA
 ├── .gitignore
 ├── LICENSE
 └── README.md
