@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using Domain.Models;
+using Domain.Model;
 
 namespace Persistence.Context;
 
