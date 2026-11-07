@@ -18,11 +18,15 @@ public class UsuarioConfiguration : IEntityTypeConfiguration<Usuario>
         .IsRequired()
         .HasMaxLength(254);
 
+        builder.HasIndex(e => e.Email)
+        .IsUnique();
+
         builder.Property(e => e.Senha)
         .IsRequired()
         .HasMaxLength(256);
 
-        builder.HasIndex(e => e.Email)
-        .IsUnique();
+        builder.Property(e => e.ContaDeletada)
+        .IsRequired()
+        .HasDefaultValue(false);
     }
 }
