@@ -1,7 +1,13 @@
+using DotNetEnv;
+using Api.Extension;
+
+Env.TraversePath().Load();
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddEndpointsApiExplorer()
-                .AddSwaggerGen();
+                .AddSwaggerGen()
+                .AddConexaoBanco(builder.Configuration);
 
 var app = builder.Build();
 
