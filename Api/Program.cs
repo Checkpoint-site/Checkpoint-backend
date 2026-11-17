@@ -1,5 +1,6 @@
 using DotNetEnv;
 using Api.Extension;
+using Api.Middleware;
 
 Env.TraversePath().Load();
 
@@ -10,6 +11,8 @@ builder.Services.AddEndpointsApiExplorer()
                 .AddConexaoBanco(builder.Configuration);
 
 var app = builder.Build();
+
+app.UseMiddleware<GlobalExceptionMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
