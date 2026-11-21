@@ -1,0 +1,191 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+
+namespace Application.Utils.Token;
+
+public static class Token
+{
+    private const string HEADER_PADRAO_JSON = "{\"alg\":\"HS256\",\"typ\":\"JWT\"}";
+
+    /// <summary>
+    /// Gera um token JWT assinado com HMAC-SHA256 (HS256) incluindo emissor (iss) e audiência (aud).
+    /// </summary>
+    public static string GerarToken(
+        int idUsuario,
+        string email,
+        string? chaveSecreta = null,
+        string? issuer = null,
+        string? audience = null,
+        int expiracaoHoras = 24)
+    {
+        string segredo = ObterChaveSecreta(chaveSecreta);
+        string emissor = ObterIssuer(issuer);
+        string destinatario = ObterAudience(audience);
+
+        long agoraUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        long expiracaoUnix = DateTimeOffset.UtcNow.AddHours(expiracaoHoras).ToUnixTimeSeconds();
+
+        var payload = new Dictionary<string, object>
+        {
+            ["sub"] = idUsuario.ToString(),
+            ["email"] = email,
+            ["iss"] = emissor,
+            ["aud"] = destinatario,
+            ["iat"] = agoraUnix,
+            ["exp"] = expiracaoUnix
+        };
+
+        string headerBase64 = CodificarBase64Url(Encoding.UTF8.GetBytes(HEADER_PADRAO_JSON));
+        string payloadBase64 = CodificarBase64Url(JsonSerializer.SerializeToUtf8Bytes(payload));
+
+        string dadosAssinatura = $"{headerBase64}.{payloadBase64}";
+        string assinaturaBase64 = CalcularAssinaturaHmac(dadosAssinatura, segredo);
+
+        return $"{dadosAssinatura}.{assinaturaBase64}";
+    }
+
+    /// <summary>
+    /// Verifica se a assinatura, expiração, emissor (iss) e audiência (aud) do token JWT são válidas.
+    /// </summary>
+    public static bool ValidarToken(
+        string token,
+        string? chaveSecreta = null,
+        string? issuer = null,
+        string? audience = null)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            return false;
+
+        string segredo;
+        try
+        {
+            segredo = ObterChaveSecreta(chaveSecreta);
+        }
+        catch
+        {
+            return false;
+        }
+
+        string[] partes = token.Split('.');
+        if (partes.Length != 3)
+            return false;
+
+        try
+        {
+            string dadosAssinatura = $"{partes[0]}.{partes[1]}";
+            string assinaturaEsperada = CalcularAssinaturaHmac(dadosAssinatura, segredo);
+
+            byte[] bytesRecebidos = Encoding.UTF8.GetBytes(partes[2]);
+            byte[] bytesEsperados = Encoding.UTF8.GetBytes(assinaturaEsperada);
+
+            if (!CryptographicOperations.FixedTimeEquals(bytesRecebidos, bytesEsperados))
+                return false;
+
+            byte[] bytesPayload = DecodificarBase64Url(partes[1]);
+            using JsonDocument doc = JsonDocument.Parse(bytesPayload);
+
+            if (!doc.RootElement.TryGetProperty("exp", out JsonElement expElement))
+                return false;
+
+            long expUnix = expElement.GetInt64();
+            long agoraUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+            if (expUnix <= agoraUnix)
+                return false;
+
+            if (!string.IsNullOrWhiteSpace(issuer))
+            {
+                if (!doc.RootElement.TryGetProperty("iss", out JsonElement issElement) ||
+                    issElement.GetString() != issuer)
+                {
+                    return false;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(audience))
+            {
+                if (!doc.RootElement.TryGetProperty("aud", out JsonElement audElement) ||
+                    audElement.GetString() != audience)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+
+    private static string ObterChaveSecreta(string? chaveSecreta)
+    {
+        string? segredo = !string.IsNullOrWhiteSpace(chaveSecreta)
+            ? chaveSecreta
+            : Environment.GetEnvironmentVariable("JWT_SECRET_KEY");
+
+        if (string.IsNullOrWhiteSpace(segredo))
+            throw new InvalidOperationException("A chave secreta JWT não foi configurada.");
+
+        return segredo;
+    }
+
+    private static string ObterIssuer(string? issuer)
+    {
+        string? emissor = !string.IsNullOrWhiteSpace(issuer)
+            ? issuer
+            : Environment.GetEnvironmentVariable("JWT_ISSUER")
+                ?? Environment.GetEnvironmentVariable("ISS");
+
+        return !string.IsNullOrWhiteSpace(emissor) ? emissor : "TavernaWebBackend";
+    }
+
+    private static string ObterAudience(string? audience)
+    {
+        string? destinatario = !string.IsNullOrWhiteSpace(audience)
+            ? audience
+            : Environment.GetEnvironmentVariable("JWT_AUDIENCE")
+                ?? Environment.GetEnvironmentVariable("AUD");
+
+        return !string.IsNullOrWhiteSpace(destinatario) ? destinatario : "TavernaWebFrontend";
+    }
+
+    private static string CalcularAssinaturaHmac(string dados, string segredo)
+    {
+        byte[] bytesChave = Encoding.UTF8.GetBytes(segredo);
+        byte[] bytesDados = Encoding.UTF8.GetBytes(dados);
+        byte[] hash = HMACSHA256.HashData(bytesChave, bytesDados);
+
+        return CodificarBase64Url(hash);
+    }
+
+    private static string CodificarBase64Url(byte[] bytes)
+    {
+        return Convert.ToBase64String(bytes)
+            .TrimEnd('=')
+            .Replace('+', '-')
+            .Replace('/', '_');
+    }
+
+    private static byte[] DecodificarBase64Url(string entrada)
+    {
+        string base64 = entrada
+            .Replace('-', '+')
+            .Replace('_', '/');
+
+        switch (base64.Length % 4)
+        {
+            case 2:
+                base64 += "==";
+                break;
+            case 3:
+                base64 += "=";
+                break;
+        }
+
+        return Convert.FromBase64String(base64);
+    }
+}
