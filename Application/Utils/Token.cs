@@ -119,7 +119,9 @@ public static class Token
     {
         string? segredo = !string.IsNullOrWhiteSpace(chaveSecreta)
             ? chaveSecreta
-            : Environment.GetEnvironmentVariable("JWT_SECRET_KEY");
+            : Environment.GetEnvironmentVariable("JWT_SECRET_KEY")
+                ?? Environment.GetEnvironmentVariable("Token__Secret")
+                ?? Environment.GetEnvironmentVariable("TOKEN_SECRET");
 
         if (string.IsNullOrWhiteSpace(segredo))
             throw new InvalidOperationException("A chave secreta JWT não foi configurada.");

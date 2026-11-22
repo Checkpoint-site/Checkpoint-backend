@@ -9,7 +9,7 @@ Env.TraversePath().Load();
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddEndpointsApiExplorer()
-                .AddSwaggerGen()
+                .AddConfiguracaoSwagger()
                 .AddConexaoBanco(builder.Configuration)
                 .AddInjecaoDependencia()
                 .AddAutenticacaoSeguranca(builder.Configuration);
