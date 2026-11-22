@@ -1,4 +1,5 @@
 using DotNetEnv;
+using Api.Endpoints.Cadastro;
 using Api.Endpoints.Login;
 using Api.Extension;
 using Api.Middleware;
@@ -24,10 +25,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-
-var api =app.MapGroup("/api/v1")
+var api = app.MapGroup("/api/v1")
     .WithTags("API");
 
 api.MapLoginEndpoint();
+api.MapCadastroEndpoint();
 
 app.Run();

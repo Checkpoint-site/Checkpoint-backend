@@ -12,6 +12,9 @@ public static class InjecaoDependencia
         services.AddScoped<ILoginRepository, LoginRepository>();
         services.AddScoped<ILoginService, LoginService>();
 
+        services.AddScoped<ICadastroRepository, CadastroRepository>();
+        services.AddScoped<ICadastroService, CadastroService>();
+
         return services;
     }
 }
