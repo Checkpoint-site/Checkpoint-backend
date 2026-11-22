@@ -1,4 +1,5 @@
 using DotNetEnv;
+using Api.Endpoints.Login;
 using Api.Extension;
 using Api.Middleware;
 
@@ -8,7 +9,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddEndpointsApiExplorer()
                 .AddSwaggerGen()
-                .AddConexaoBanco(builder.Configuration);
+                .AddConexaoBanco(builder.Configuration)
+                .AddInjecaoDependencia();
 
 var app = builder.Build();
 
@@ -21,5 +23,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+
+var api =app.MapGroup("/api/v1")
+    .WithTags("API");
+
+api.MapLoginEndpoint();
 
 app.Run();
