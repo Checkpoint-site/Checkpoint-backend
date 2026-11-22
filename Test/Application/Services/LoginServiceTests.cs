@@ -9,6 +9,7 @@ using Xunit;
 
 namespace Test.Application.Services;
 
+[Collection("Sequential")]
 public class LoginServiceTests : IDisposable
 {
     private const string ChaveSecretaTeste = "ChaveSecretaSuperSeguraParaTestesComMaisDe32Caracteres!";
