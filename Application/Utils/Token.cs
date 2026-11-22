@@ -15,13 +15,9 @@ public static class Token
         int idUsuario,
         string email,
         string? chaveSecreta = null,
-        string? issuer = null,
-        string? audience = null,
         int expiracaoHoras = 24)
     {
         string segredo = ObterChaveSecreta(chaveSecreta);
-        string emissor = ObterIssuer(issuer);
-        string destinatario = ObterAudience(audience);
 
         long agoraUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         long expiracaoUnix = DateTimeOffset.UtcNow.AddHours(expiracaoHoras).ToUnixTimeSeconds();
@@ -30,8 +26,6 @@ public static class Token
         {
             ["sub"] = idUsuario.ToString(),
             ["email"] = email,
-            ["iss"] = emissor,
-            ["aud"] = destinatario,
             ["iat"] = agoraUnix,
             ["exp"] = expiracaoUnix
         };
@@ -131,26 +125,6 @@ public static class Token
             throw new InvalidOperationException("A chave secreta JWT não foi configurada.");
 
         return segredo;
-    }
-
-    private static string ObterIssuer(string? issuer)
-    {
-        string? emissor = !string.IsNullOrWhiteSpace(issuer)
-            ? issuer
-            : Environment.GetEnvironmentVariable("JWT_ISSUER")
-                ?? Environment.GetEnvironmentVariable("ISS");
-
-        return !string.IsNullOrWhiteSpace(emissor) ? emissor : "TavernaWebBackend";
-    }
-
-    private static string ObterAudience(string? audience)
-    {
-        string? destinatario = !string.IsNullOrWhiteSpace(audience)
-            ? audience
-            : Environment.GetEnvironmentVariable("JWT_AUDIENCE")
-                ?? Environment.GetEnvironmentVariable("AUD");
-
-        return !string.IsNullOrWhiteSpace(destinatario) ? destinatario : "TavernaWebFrontend";
     }
 
     private static string CalcularAssinaturaHmac(string dados, string segredo)
