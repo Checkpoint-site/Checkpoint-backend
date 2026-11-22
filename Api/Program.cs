@@ -11,7 +11,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer()
                 .AddSwaggerGen()
                 .AddConexaoBanco(builder.Configuration)
-                .AddInjecaoDependencia();
+                .AddInjecaoDependencia()
+                .AddAutenticacaoSeguranca(builder.Configuration);
 
 var app = builder.Build();
 
@@ -24,6 +25,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 var api = app.MapGroup("/api/v1")
     .WithTags("API");
