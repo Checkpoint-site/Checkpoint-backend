@@ -16,4 +16,8 @@ public record CadastroRequestDto
     [Required(ErrorMessage = "A senha é obrigatória.")]
     [MinLength(6, ErrorMessage = "A senha deve ter no mínimo 6 caracteres.")]
     public required string Senha { get; init; }
+
+    [Required(ErrorMessage = "O código de verificação é obrigatório.")]
+    [RegularExpression(@"^\d{6}$", ErrorMessage = "O código de verificação deve conter exatamente 6 dígitos numéricos.")]
+    public required string Codigo { get; init; }
 }

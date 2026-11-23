@@ -11,6 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer()
                 .AddConfiguracaoSwagger()
                 .AddConexaoBanco(builder.Configuration)
+                .AddConexaoRedis(builder.Configuration)
                 .AddInjecaoDependencia()
                 .AddAutenticacaoSeguranca(builder.Configuration);
 
