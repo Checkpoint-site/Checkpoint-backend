@@ -15,7 +15,8 @@ public class CadastroMapperTests
         {
             Nome = "Geralt de Rivia",
             Email = "geralt@kaermorhen.com",
-            Senha = "SenhaForte123!"
+            Senha = "SenhaForte123!",
+            Codigo = "123456"
         };
 
         // Act
