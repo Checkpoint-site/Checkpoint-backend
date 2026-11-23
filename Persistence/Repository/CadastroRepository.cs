@@ -9,11 +9,16 @@ namespace Persistence.Repository;
 
 public class CadastroRepository(ApplicationDbContext context) : ICadastroRepository
 {
+    public async Task<bool> EmailExisteAsync(string email)
+    {
+        return await context.Usuarios
+            .AsNoTracking()
+            .AnyAsync(u => u.Email == email);
+    }
+
     public async Task<CadastroRespostDto?> CadastroRepositoryAsync(CadastroCommandsDto command)
     {
-        var emailExiste = await context.Usuarios
-            .AsNoTracking()
-            .AnyAsync(u => u.Email == command.Email);
+        var emailExiste = await EmailExisteAsync(command.Email);
 
         if (emailExiste)
         {
