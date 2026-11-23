@@ -10,35 +10,37 @@ public class SmtpEmailService(IConfiguration configuration, ILogger<SmtpEmailSer
 {
     public async Task EnviarEmailAsync(string destinatario, string assunto, string corpo)
     {
-        var host = Environment.GetEnvironmentVariable("SMTP_HOST") ?? configuration["Smtp:Host"];
-        var portString = Environment.GetEnvironmentVariable("SMTP_PORT") ?? configuration["Smtp:Port"];
-        var user = Environment.GetEnvironmentVariable("SMTP_USER") ?? configuration["Smtp:User"];
-        var pass = Environment.GetEnvironmentVariable("SMTP_PASS") ?? configuration["Smtp:Pass"];
-        var from = Environment.GetEnvironmentVariable("SMTP_FROM") ?? configuration["Smtp:From"];
+        var host = Environment.GetEnvironmentVariable("SMTP_HOST")
+            ?? configuration["Smtp:Host"]
+            ?? throw new InvalidOperationException("O host do SMTP (SMTP_HOST) não foi configurado.");
 
-        if (string.IsNullOrWhiteSpace(host))
+        var portString = Environment.GetEnvironmentVariable("SMTP_PORT")
+            ?? configuration["Smtp:Port"]
+            ?? throw new InvalidOperationException("A porta do SMTP (SMTP_PORT) não foi configurada.");
+
+        if (!int.TryParse(portString, out var port))
         {
-            logger.LogWarning(
-                "SMTP_HOST não configurado. [Simulação de E-mail] Destinatário: {Destinatario} | Assunto: '{Assunto}' | Corpo: '{Corpo}'",
-                destinatario,
-                assunto,
-                corpo
-            );
-            return;
+            throw new InvalidOperationException("A porta do SMTP (SMTP_PORT) deve ser um número válido.");
         }
 
-        int port = int.TryParse(portString, out var p) ? p : 587;
+        var user = Environment.GetEnvironmentVariable("SMTP_USER")
+            ?? configuration["Smtp:User"]
+            ?? throw new InvalidOperationException("O usuário do SMTP (SMTP_USER) não foi configurado.");
+
+        var pass = Environment.GetEnvironmentVariable("SMTP_PASS")
+            ?? configuration["Smtp:Pass"]
+            ?? throw new InvalidOperationException("A senha do SMTP (SMTP_PASS) não foi configurada.");
+
+        var from = Environment.GetEnvironmentVariable("SMTP_FROM")
+            ?? configuration["Smtp:From"]
+            ?? throw new InvalidOperationException("O e-mail de envio do SMTP (SMTP_FROM) não foi configurado.");
 
         using var client = new SmtpClient(host, port)
         {
             EnableSsl = port != 25,
-            Timeout = 10000
+            Timeout = 10000,
+            Credentials = new NetworkCredential(user, pass)
         };
-
-        if (!string.IsNullOrWhiteSpace(user) && !string.IsNullOrWhiteSpace(pass))
-        {
-            client.Credentials = new NetworkCredential(user, pass);
-        }
 
         using var message = new MailMessage
         {
