@@ -1,6 +1,7 @@
 using Application.Dtos.Cadastro.Requests;
 using Application.Dtos.Cadastro.Responses;
 using Application.Interfaces;
+using Application.Regras.Perfis;
 using Application.Utils;
 using Application.Utils.Hash;
 using Application.Utils.Token;
@@ -14,7 +15,8 @@ namespace Application.Services;
 public class CadastroService(
     ICadastroRepository repository,
     ICodigoVerificacaoService codigoVerificacaoService,
-    IEmailService emailService
+    IEmailService emailService,
+    IModeracaoFotoService moderacaoFotoService
 ) : ICadastroService
 {
     public async Task<VerificarEmailResponseDto> VerificarDisponibilidadeAsync(VerificarEmailRequestDto request)
@@ -60,6 +62,18 @@ public class CadastroService(
             throw new ValidationException("Código de verificação inválido ou expirado.");
         }
 
+        if (!string.IsNullOrWhiteSpace(request.FotoPerfil))
+        {
+            bool fotoSegura = await moderacaoFotoService.FotoEhSeguraAsync(request.FotoPerfil);
+            if (!fotoSegura)
+            {
+                throw new ValidationException("A foto de perfil contém conteúdo impróprio ou ofensivo.");
+            }
+        }
+
+        var regra = RegraPerfilUsuario.Criar(request.TipoPerfil);
+        regra.ValidarDadosCadastro(request);
+
         await codigoVerificacaoService.RemoverCodigoAsync(request.Email);
 
         var command = ToCommand(request);
@@ -68,7 +82,8 @@ public class CadastroService(
         var commandComHash = command with
         {
             Email = command.Email,
-            Senha = senhaHash
+            Senha = senhaHash,
+            LimiteListasInicial = regra.ObterLimiteInicialListas()
         };
 
         var usuarioCriado = await repository.CadastroRepositoryAsync(commandComHash)
@@ -76,7 +91,8 @@ public class CadastroService(
 
         string token = Token.GerarToken(
             usuarioCriado.Id,
-            usuarioCriado.Email
+            usuarioCriado.Email,
+            regra.ObterRole()
         );
 
         return new CadastroResponseDto

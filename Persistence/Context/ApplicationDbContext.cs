@@ -11,6 +11,8 @@ public class ApplicationDbContext : DbContext
     }
 
     public DbSet<Usuario> Usuarios { get; set; }
+    public DbSet<UsuarioRegular> UsuariosRegulares { get; set; }
+    public DbSet<Moderador> Moderadores { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

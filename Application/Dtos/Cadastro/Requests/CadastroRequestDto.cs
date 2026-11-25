@@ -20,4 +20,9 @@ public record CadastroRequestDto
     [Required(ErrorMessage = "O código de verificação é obrigatório.")]
     [RegularExpression(@"^\d{6}$", ErrorMessage = "O código de verificação deve conter exatamente 6 dígitos numéricos.")]
     public required string Codigo { get; init; }
+
+    public string TipoPerfil { get; init; } = "Regular";
+    public string? CodigoCredencial { get; init; }
+    public string? SetorModeracao { get; init; }
+    public string? FotoPerfil { get; init; }
 }

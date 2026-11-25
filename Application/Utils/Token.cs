@@ -14,6 +14,7 @@ public static class Token
     public static string GerarToken(
         int idUsuario,
         string email,
+        string role = "Regular",
         string? chaveSecreta = null,
         int expiracaoHoras = 24)
     {
@@ -26,6 +27,7 @@ public static class Token
         {
             ["sub"] = idUsuario.ToString(),
             ["email"] = email,
+            ["role"] = role,
             ["iat"] = agoraUnix,
             ["exp"] = expiracaoUnix
         };
