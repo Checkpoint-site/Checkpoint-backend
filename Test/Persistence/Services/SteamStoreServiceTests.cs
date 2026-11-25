@@ -83,7 +83,7 @@ public class SteamStoreServiceTests
     }
 
     [Fact]
-    public async Task BuscarPorTermoAsync_QuandoSteamRetornaErroHttp_LancaIntegrationException()
+    public async Task BuscarJogosAsync_QuandoSteamRetornaErroHttp_LancaIntegrationException()
     {
         var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.TooManyRequests));
         using var httpClient = new HttpClient(handler)
@@ -93,6 +93,6 @@ public class SteamStoreServiceTests
 
         var service = new SteamStoreService(httpClient, NullLogger<SteamStoreService>.Instance);
 
-        await Assert.ThrowsAsync<IntegrationException>(() => service.BuscarPorTermoAsync("witcher"));
+        await Assert.ThrowsAsync<IntegrationException>(() => service.BuscarJogosAsync("witcher"));
     }
 }

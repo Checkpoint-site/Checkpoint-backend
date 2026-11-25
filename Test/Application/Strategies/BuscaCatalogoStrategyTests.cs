@@ -1,13 +1,13 @@
 using Application.Strategies.Busca;
+using Domain.Dtos.Catalogo.Respost;
 using Domain.Enum;
 using Domain.Exceptions.Common;
-using Domain.Model;
 
 namespace Test.Application.Strategies;
 
 public class BuscaCatalogoStrategyTests
 {
-    private static Jogo CriarJogo(int id, string nome, int ano, string dev, string pub) => new()
+    private static JogoCatalogoRespostDto CriarJogo(int id, string nome, int ano, string dev, string pub) => new()
     {
         IdJogo = id,
         SteamAppId = id * 10,
@@ -23,7 +23,7 @@ public class BuscaCatalogoStrategyTests
     [Fact]
     public void PolimorfismoBusca_NomeAnoEAutor_FiltramEPontuamDeAcordoComCadaSubclasse()
     {
-        var catalogo = new List<Jogo>
+        var catalogo = new List<JogoCatalogoRespostDto>
         {
             CriarJogo(1, "Elden Ring", 2022, "FromSoftware", "Bandai Namco"),
             CriarJogo(2, "Dark Souls III", 2016, "FromSoftware", "FromSoftware"),
@@ -54,10 +54,10 @@ public class BuscaCatalogoStrategyTests
     [Theory]
     [InlineData("")]
     [InlineData("a")]
-    public void BuscaPorNome_TermoInvalido_LancaValidationException(string termo)
+    public void BuscaPorNome_JogoBuscadoInvalido_LancaValidationException(string jogoBuscado)
     {
         EstrategiaBuscaCatalogo estrategia = new BuscaPorNomeStrategy();
-        Assert.Throws<ValidationException>(() => estrategia.ValidarTermo(termo));
+        Assert.Throws<ValidationException>(() => estrategia.ValidarBusca(jogoBuscado));
     }
 
     [Theory]
@@ -67,6 +67,6 @@ public class BuscaCatalogoStrategyTests
     public void BuscaPorAno_AnoInvalido_LancaValidationException(string ano)
     {
         EstrategiaBuscaCatalogo estrategia = new BuscaPorAnoStrategy();
-        Assert.Throws<ValidationException>(() => estrategia.ValidarTermo(ano));
+        Assert.Throws<ValidationException>(() => estrategia.ValidarBusca(ano));
     }
 }

@@ -1,14 +1,21 @@
+using Application.Dtos.Catalogo.Requests;
 using Application.Dtos.Estantes.Requests;
+using Application.Factories;
 using Application.Services;
 using Application.Strategies.Algoritmos;
 using Application.Strategies.Busca;
 using Application.Strategies.Estantes;
 using Domain.Dtos.Catalogo;
+using Domain.Dtos.Catalogo.Commands;
+using Domain.Dtos.Catalogo.Respost;
+using Domain.Dtos.Estantes.Commands;
+using Domain.Dtos.Estantes.Respost;
+using Domain.Dtos.Loggers.Commands;
+using Domain.Dtos.Loggers.Respost;
 using Domain.Enum;
 using Domain.Exceptions.Common;
 using Domain.Interfaces.Repository;
 using Domain.Interfaces.Services;
-using Domain.Model;
 
 namespace Test.Application.Services;
 
@@ -16,41 +23,45 @@ public class CatalogoEEstanteServiceTests
 {
     private sealed class FakeCatalogoRepository : ICatalogoRepository
     {
-        public readonly List<Jogo> Jogos = [];
+        public readonly List<JogoCatalogoRespostDto> Jogos = [];
         private int _nextId = 1;
 
-        public Task<Jogo?> ObterPorIdAsync(int idJogo, CancellationToken ct = default) =>
+        public Task<JogoCatalogoRespostDto?> ObterPorIdAsync(int idJogo, CancellationToken ct = default) =>
             Task.FromResult(Jogos.FirstOrDefault(j => j.IdJogo == idJogo));
 
-        public Task<IReadOnlyList<Jogo>> ObterPorIdsAsync(IEnumerable<int> idsJogos, CancellationToken ct = default)
+        public Task<IReadOnlyList<JogoCatalogoRespostDto>> ObterPorIdsAsync(IEnumerable<int> idsJogos, CancellationToken ct = default)
         {
             var set = idsJogos.ToHashSet();
-            return Task.FromResult<IReadOnlyList<Jogo>>(Jogos.Where(j => set.Contains(j.IdJogo)).ToList());
+            return Task.FromResult<IReadOnlyList<JogoCatalogoRespostDto>>(Jogos.Where(j => set.Contains(j.IdJogo)).ToList());
         }
 
-        public Task<Jogo?> ObterPorSteamAppIdAsync(int steamAppId, CancellationToken ct = default) =>
+        public Task<JogoCatalogoRespostDto?> ObterPorSteamAppIdAsync(int steamAppId, CancellationToken ct = default) =>
             Task.FromResult(Jogos.FirstOrDefault(j => j.SteamAppId == steamAppId));
 
-        public Task<IReadOnlyList<Jogo>> ObterPorSteamAppIdsAsync(IEnumerable<int> steamAppIds, CancellationToken ct = default)
+        public Task<IReadOnlyList<JogoCatalogoRespostDto>> ObterPorSteamAppIdsAsync(IEnumerable<int> steamAppIds, CancellationToken ct = default)
         {
             var set = steamAppIds.ToHashSet();
-            return Task.FromResult<IReadOnlyList<Jogo>>(Jogos.Where(j => set.Contains(j.SteamAppId)).ToList());
+            return Task.FromResult<IReadOnlyList<JogoCatalogoRespostDto>>(Jogos.Where(j => set.Contains(j.SteamAppId)).ToList());
         }
 
-        public Task<IReadOnlyList<Jogo>> BuscarCandidatosLocaisAsync(string tipoBusca, string termo, CancellationToken ct = default) =>
-            Task.FromResult<IReadOnlyList<Jogo>>(Jogos.ToList());
+        public Task<IReadOnlyList<JogoCatalogoRespostDto>> BuscarCandidatosLocaisAsync(BuscarCandidatosLocaisCommandDto command, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<JogoCatalogoRespostDto>>(Jogos.ToList());
 
-        public Task<Jogo> SalvarOuAtualizarAsync(DetalhesJogoSteamDto d, CancellationToken ct = default)
+        public Task<JogoCatalogoRespostDto> SalvarOuAtualizarAsync(DetalhesJogoSteamDto d, CancellationToken ct = default)
         {
-            var existente = Jogos.FirstOrDefault(j => j.SteamAppId == d.SteamAppId);
-            if (existente is not null)
+            var indice = Jogos.FindIndex(j => j.SteamAppId == d.SteamAppId);
+            if (indice >= 0)
             {
-                existente.Nome = d.Nome;
-                existente.SincronizadoEm = DateTime.UtcNow;
-                return Task.FromResult(existente);
+                var atualizado = Jogos[indice] with
+                {
+                    Nome = d.Nome,
+                    SincronizadoEm = DateTime.UtcNow
+                };
+                Jogos[indice] = atualizado;
+                return Task.FromResult(atualizado);
             }
 
-            var novo = new Jogo
+            var novo = new JogoCatalogoRespostDto
             {
                 IdJogo = _nextId++,
                 SteamAppId = d.SteamAppId,
@@ -76,103 +87,141 @@ public class CatalogoEEstanteServiceTests
 
     private sealed class FakeEstanteRepository : IEstanteRepository
     {
-        public readonly Dictionary<int, Favoritos> FavoritosPorUsuario = [];
-        public readonly Dictionary<int, PretendeJogar> PretendePorUsuario = [];
+        public readonly Dictionary<int, FavoritosRespostDto> FavoritosPorUsuario = [];
+        public readonly Dictionary<int, PretendeJogarRespostDto> PretendePorUsuario = [];
         private int _nextId = 1;
 
-        public Task<Favoritos?> ObterFavoritosPorUsuarioAsync(int idUsuario, CancellationToken ct = default) =>
+        public Task<FavoritosRespostDto?> ObterFavoritosPorUsuarioAsync(int idUsuario, CancellationToken ct = default) =>
             Task.FromResult(FavoritosPorUsuario.TryGetValue(idUsuario, out var fav) ? fav : null);
 
-        public Task<PretendeJogar?> ObterPretendeJogarPorUsuarioAsync(int idUsuario, CancellationToken ct = default) =>
+        public Task<PretendeJogarRespostDto?> ObterPretendeJogarPorUsuarioAsync(int idUsuario, CancellationToken ct = default) =>
             Task.FromResult(PretendePorUsuario.TryGetValue(idUsuario, out var pj) ? pj : null);
 
-        public Task<Favoritos> SalvarFavoritosAsync(Favoritos favoritos, CancellationToken ct = default)
+        public Task<FavoritosRespostDto> SalvarFavoritosAsync(SalvarFavoritosCommandDto command, CancellationToken ct = default)
         {
-            if (favoritos.IdCatalogo == 0)
-            {
-                favoritos.IdCatalogo = _nextId++;
-            }
+            var idCatalogo = FavoritosPorUsuario.TryGetValue(command.IdUsuario, out var atual)
+                ? atual.IdCatalogo
+                : _nextId++;
 
-            FavoritosPorUsuario[favoritos.IdUsuario] = favoritos;
-            return Task.FromResult(favoritos);
+            var salvo = new FavoritosRespostDto
+            {
+                IdCatalogo = idCatalogo,
+                IdUsuario = command.IdUsuario,
+                Jogos = command.Jogos.ToList(),
+                JogoDestaquePerfilId = command.JogoDestaquePerfilId,
+                ExibirNoTopoPerfil = command.ExibirNoTopoPerfil,
+                ObservacaoDestaque = command.ObservacaoDestaque,
+                DataAtualizacao = DateTime.UtcNow
+            };
+
+            FavoritosPorUsuario[command.IdUsuario] = salvo;
+            return Task.FromResult(salvo);
         }
 
-        public Task<PretendeJogar> SalvarPretendeJogarAsync(PretendeJogar pretendeJogar, CancellationToken ct = default)
+        public Task<PretendeJogarRespostDto> SalvarPretendeJogarAsync(SalvarPretendeJogarCommandDto command, CancellationToken ct = default)
         {
-            if (pretendeJogar.IdCatalogo == 0)
-            {
-                pretendeJogar.IdCatalogo = _nextId++;
-            }
+            var idCatalogo = PretendePorUsuario.TryGetValue(command.IdUsuario, out var atual)
+                ? atual.IdCatalogo
+                : _nextId++;
 
-            PretendePorUsuario[pretendeJogar.IdUsuario] = pretendeJogar;
-            return Task.FromResult(pretendeJogar);
+            var salvo = new PretendeJogarRespostDto
+            {
+                IdCatalogo = idCatalogo,
+                IdUsuario = command.IdUsuario,
+                Jogos = command.Jogos.ToList(),
+                NivelPrioridade = command.NivelPrioridade,
+                NotificarEmPromocao = command.NotificarEmPromocao,
+                MetaAnoConclusao = command.MetaAnoConclusao,
+                DataAtualizacao = DateTime.UtcNow
+            };
+
+            PretendePorUsuario[command.IdUsuario] = salvo;
+            return Task.FromResult(salvo);
         }
     }
 
     private sealed class FakeLoggerRepository : IEngajamentoLoggerRepository
     {
-        public readonly List<GeneroLogger> GeneroLoggers = [];
-        public readonly Dictionary<int, JogoLogger> JogoLoggers = [];
-        public readonly Dictionary<int, UsuarioLogger> UsuarioLoggers = [];
+        public readonly Dictionary<Generos, GeneroLoggerRespostDto> GeneroLoggers = [];
+        public readonly Dictionary<int, JogoLoggerRespostDto> JogoLoggers = [];
+        public readonly Dictionary<int, UsuarioLoggerRespostDto> UsuarioLoggers = [];
         public List<UsuarioPopularComunidadeDto> Populares = [];
 
-        public Task<IReadOnlyList<GeneroLogger>> ObterGeneroLoggersGlobaisAsync(CancellationToken ct = default) =>
-            Task.FromResult<IReadOnlyList<GeneroLogger>>(GeneroLoggers.Where(g => g.IdUsuario == null).ToList());
+        public Task<IReadOnlyList<GeneroLoggerRespostDto>> ObterGeneroLoggersAsync(CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<GeneroLoggerRespostDto>>(GeneroLoggers.Values.ToList());
 
-        public Task<IReadOnlyList<GeneroLogger>> ObterGeneroLoggersPorUsuarioAsync(int idUsuario, CancellationToken ct = default) =>
-            Task.FromResult<IReadOnlyList<GeneroLogger>>(GeneroLoggers.Where(g => g.IdUsuario == idUsuario).ToList());
-
-        public Task<GeneroLogger> ObterOuCriarGeneroLoggerAsync(Generos genero, int? idUsuario, CancellationToken ct = default)
-        {
-            var existente = GeneroLoggers.FirstOrDefault(g => g.Genero == genero && g.IdUsuario == idUsuario);
-            if (existente is not null)
-            {
-                return Task.FromResult(existente);
-            }
-
-            var novo = new GeneroLogger { Genero = genero, IdUsuario = idUsuario };
-            GeneroLoggers.Add(novo);
-            return Task.FromResult(novo);
-        }
-
-        public Task<JogoLogger?> ObterJogoLoggerAsync(int idJogo, CancellationToken ct = default) =>
+        public Task<JogoLoggerRespostDto?> ObterJogoLoggerAsync(int idJogo, CancellationToken ct = default) =>
             Task.FromResult(JogoLoggers.TryGetValue(idJogo, out var l) ? l : null);
 
-        public Task<IReadOnlyDictionary<int, JogoLogger>> ObterJogoLoggersPorJogosAsync(IEnumerable<int> idsJogos, CancellationToken ct = default)
+        public Task<IReadOnlyDictionary<int, JogoLoggerRespostDto>> ObterJogoLoggersPorJogosAsync(IEnumerable<int> idsJogos, CancellationToken ct = default)
         {
             var set = idsJogos.ToHashSet();
-            IReadOnlyDictionary<int, JogoLogger> dict = JogoLoggers
+            IReadOnlyDictionary<int, JogoLoggerRespostDto> dict = JogoLoggers
                 .Where(kv => set.Contains(kv.Key))
                 .ToDictionary(kv => kv.Key, kv => kv.Value);
             return Task.FromResult(dict);
         }
 
-        public Task<JogoLogger> ObterOuCriarJogoLoggerAsync(int idJogo, CancellationToken ct = default)
+        public Task AplicarImpactoEstanteAsync(ImpactoEngajamentoEstanteCommandDto command, CancellationToken ct = default)
         {
-            if (!JogoLoggers.TryGetValue(idJogo, out var l))
+            var agora = DateTime.UtcNow;
+
+            var jogoAtual = JogoLoggers.TryGetValue(command.IdJogo, out var jl)
+                ? jl
+                : new JogoLoggerRespostDto { IdJogo = command.IdJogo };
+
+            JogoLoggers[command.IdJogo] = jogoAtual with
             {
-                l = new JogoLogger { IdJogo = idJogo };
-                JogoLoggers[idJogo] = l;
+                PresencaFavoritos = AplicarDelta(jogoAtual.PresencaFavoritos, command.DeltaFavoritosJogo),
+                PresencaPretendeJogar = AplicarDelta(jogoAtual.PresencaPretendeJogar, command.DeltaPretendeJogarJogo),
+                UltimaAtualizacao = agora
+            };
+
+            var usuarioAtual = UsuarioLoggers.TryGetValue(command.IdUsuario, out var ul)
+                ? ul
+                : new UsuarioLoggerRespostDto { IdUsuario = command.IdUsuario };
+
+            UsuarioLoggers[command.IdUsuario] = usuarioAtual with
+            {
+                PresencaFavoritos = AplicarDelta(usuarioAtual.PresencaFavoritos, command.DeltaFavoritosUsuario),
+                UltimaAtualizacao = agora
+            };
+
+            foreach (var genero in command.Generos.Distinct())
+            {
+                var generoAtual = GeneroLoggers.TryGetValue(genero, out var gl)
+                    ? gl
+                    : new GeneroLoggerRespostDto { Genero = genero };
+
+                GeneroLoggers[genero] = generoAtual with
+                {
+                    PresencaFavoritos = AplicarDelta(generoAtual.PresencaFavoritos, command.DeltaFavoritosGenero),
+                    PresencaPretendeJogar = AplicarDelta(generoAtual.PresencaPretendeJogar, command.DeltaPretendeJogarGenero),
+                    UltimaAtualizacao = agora
+                };
             }
 
-            return Task.FromResult(l);
-        }
-
-        public Task<UsuarioLogger> ObterOuCriarUsuarioLoggerAsync(int idUsuario, CancellationToken ct = default)
-        {
-            if (!UsuarioLoggers.TryGetValue(idUsuario, out var u))
-            {
-                u = new UsuarioLogger { IdUsuario = idUsuario };
-                UsuarioLoggers[idUsuario] = u;
-            }
-
-            return Task.FromResult(u);
+            return Task.CompletedTask;
         }
 
         public Task<IReadOnlyList<UsuarioPopularComunidadeDto>> ObterUsuariosPopularesAsync(int limite = 10, CancellationToken ct = default) =>
             Task.FromResult<IReadOnlyList<UsuarioPopularComunidadeDto>>(Populares.Take(limite).ToList());
 
-        public Task SalvarAlteracoesAsync(CancellationToken ct = default) => Task.CompletedTask;
+        private static ulong AplicarDelta(ulong atual, int delta)
+        {
+            if (delta == 0)
+            {
+                return atual;
+            }
+
+            if (delta > 0)
+            {
+                return atual + (ulong)delta;
+            }
+
+            var decrescimo = (ulong)(-delta);
+            return atual > decrescimo ? atual - decrescimo : 0UL;
+        }
     }
 
     private sealed class FakeSteamStoreService : ISteamStoreService
@@ -180,7 +229,7 @@ public class CatalogoEEstanteServiceTests
         public bool FalharComunicacao { get; set; }
         public readonly Dictionary<int, DetalhesJogoSteamDto> Detalhes = [];
 
-        public Task<IReadOnlyList<ItemBuscaSteamDto>> BuscarPorTermoAsync(string termo, CancellationToken ct = default)
+        public Task<IReadOnlyList<ItemBuscaSteamDto>> BuscarJogosAsync(string jogoBuscado, CancellationToken ct = default)
         {
             if (FalharComunicacao)
             {
@@ -273,23 +322,31 @@ public class CatalogoEEstanteServiceTests
             PercentualDesconto = 75
         };
 
+        var regraFactory = new RegraEstanteFactory([new RegraEstanteFavoritos(), new RegraEstantePretendeJogar()]);
+        var buscaFactory = new BuscaCatalogoStrategyFactory([new BuscaPorNomeStrategy(), new BuscaPorAnoStrategy(), new BuscaPorAutorStrategy()]);
+        var algoritmoFactory = new AlgoritmoCuradoriaFactory([new AlgoritmoPopularidadeJogo(), new AlgoritmoTendenciaGenero(), new AlgoritmoCustoBeneficio()]);
+
         var estanteService = new EstanteService(
             estanteRepo,
             catalogoRepo,
             loggerRepo,
             steamService,
             cacheService,
-            [new RegraEstanteFavoritos(), new RegraEstantePretendeJogar()]);
+            regraFactory);
 
         var catalogoService = new CatalogoService(
             catalogoRepo,
             loggerRepo,
             steamService,
             cacheService,
-            [new BuscaPorNomeStrategy(), new BuscaPorAnoStrategy(), new BuscaPorAutorStrategy()],
-            [new AlgoritmoPopularidadeJogo(), new AlgoritmoTendenciaGenero(), new AlgoritmoCustoBeneficio()]);
+            buscaFactory,
+            algoritmoFactory);
 
-        var estantes = await estanteService.AdicionarJogoAsync(idUsuario: 42, tipoEstante: "favoritos", steamAppId: 292030);
+        var estantes = await estanteService.AdicionarJogoAsync(idUsuario: 42, new AlterarJogoEstanteRequestDto
+        {
+            TipoEstante = "favoritos",
+            SteamAppId = 292030
+        });
         Assert.Single(estantes.Favoritos.Jogos);
         Assert.Equal(75, estantes.Favoritos.Jogos[0].PercentualDesconto);
 
@@ -305,14 +362,20 @@ public class CatalogoEEstanteServiceTests
         var jogoSalvo = catalogoRepo.Jogos.Single();
         Assert.Equal(1UL, loggerRepo.JogoLoggers[jogoSalvo.IdJogo].PresencaFavoritos);
         Assert.Equal(1UL, loggerRepo.UsuarioLoggers[42].PresencaFavoritos);
+        Assert.Equal(2, loggerRepo.GeneroLoggers.Count);
 
-        var tendencias = await catalogoService.ObterTendenciasGenerosAsync(idUsuario: 42);
-        Assert.True(tendencias.PersonalizadoParaUsuario);
+        var tendencias = await catalogoService.ObterTendenciasGenerosAsync();
+        Assert.Equal(12, tendencias.Generos.Count);
         var topDois = tendencias.Generos.Take(2).ToList();
-        Assert.Contains(topDois, g => g.Genero == "Rpg" && g.PontuacaoGlobal > 0);
-        Assert.Contains(topDois, g => g.Genero == "Aventura" && g.PontuacaoGlobal > 0);
+        Assert.Contains(topDois, g => g.Genero == "Rpg" && g.Pontuacao > 0 && g.PresencaFavoritos == 1UL);
+        Assert.Contains(topDois, g => g.Genero == "Aventura" && g.Pontuacao > 0 && g.PresencaFavoritos == 1UL);
 
-        var buscaPorAutor = await catalogoService.BuscarAsync("autor", "CD PROJEKT", "popularidade", idUsuario: null);
+        var buscaPorAutor = await catalogoService.BuscarAsync(new BuscarCatalogoRequestDto
+        {
+            Tipo = "autor",
+            JogoBuscado = "CD PROJEKT",
+            Algoritmo = "popularidade"
+        });
         Assert.Equal(1, buscaPorAutor.TotalResultados);
         Assert.Equal("The Witcher 3: Wild Hunt", buscaPorAutor.Itens[0].Nome);
     }
@@ -341,16 +404,22 @@ public class CatalogoEEstanteServiceTests
             PercentualDesconto = 0
         };
 
+        var regraFactory = new RegraEstanteFactory([new RegraEstanteFavoritos(), new RegraEstantePretendeJogar()]);
+
         var estanteService = new EstanteService(
             estanteRepo,
             catalogoRepo,
             loggerRepo,
             steamService,
             cacheService,
-            [new RegraEstanteFavoritos(), new RegraEstantePretendeJogar()]);
+            regraFactory);
 
         // 1. Usuário adiciona sem promoção no momento
-        await estanteService.AdicionarJogoAsync(idUsuario: 15, tipoEstante: "pretende-jogar", steamAppId: 1091500);
+        await estanteService.AdicionarJogoAsync(idUsuario: 15, new AlterarJogoEstanteRequestDto
+        {
+            TipoEstante = "pretende-jogar",
+            SteamAppId = 1091500
+        });
 
         // 2. Cache temporário do Redis expira (30 min) e entra promoção de 60% na Steam
         cacheService.Dados.Clear();
@@ -378,7 +447,7 @@ public class CatalogoEEstanteServiceTests
         var steamService = new FakeSteamStoreService { FalharComunicacao = true };
         var cacheService = new FakeCacheService();
 
-        catalogoRepo.Jogos.Add(new Jogo
+        catalogoRepo.Jogos.Add(new JogoCatalogoRespostDto
         {
             IdJogo = 7,
             SteamAppId = 1245620,
@@ -397,10 +466,13 @@ public class CatalogoEEstanteServiceTests
             loggerRepo,
             steamService,
             cacheService,
-            [new BuscaPorNomeStrategy()],
-            [new AlgoritmoPopularidadeJogo()]);
+            new BuscaCatalogoStrategyFactory([new BuscaPorNomeStrategy()]),
+            new AlgoritmoCuradoriaFactory([new AlgoritmoPopularidadeJogo()]));
 
-        var detalhes = await catalogoService.ObterDetalhesPorSteamAppIdAsync(1245620);
+        var detalhes = await catalogoService.ObterDetalhesPorSteamAppIdAsync(new ObterDetalhesJogoRequestDto
+        {
+            SteamAppId = 1245620
+        });
 
         Assert.Equal("ELDEN RING", detalhes.Nome);
         Assert.Equal(2022, detalhes.AnoLancamento);

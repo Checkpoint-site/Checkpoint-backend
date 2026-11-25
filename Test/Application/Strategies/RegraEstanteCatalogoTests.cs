@@ -1,7 +1,8 @@
 using Application.Strategies.Estantes;
+using Domain.Dtos.Catalogo.Respost;
+using Domain.Dtos.Estantes.Respost;
 using Domain.Enum;
 using Domain.Exceptions.Common;
-using Domain.Model;
 
 namespace Test.Application.Strategies;
 
@@ -10,7 +11,7 @@ public class RegraEstanteCatalogoTests
     [Fact]
     public void PolimorfismoEstantes_JogoEmBreveEhBloqueadoEmFavoritosMasPermitidoEmPretendeJogar()
     {
-        var jogoEmBreve = new Jogo
+        var jogoEmBreve = new JogoCatalogoRespostDto
         {
             IdJogo = 50,
             SteamAppId = 1030300,
@@ -23,8 +24,8 @@ public class RegraEstanteCatalogoTests
             EmBreve = true
         };
 
-        var favoritos = new Favoritos { IdUsuario = 1, Jogos = [] };
-        var pretendeJogar = new PretendeJogar { IdUsuario = 1, Jogos = [] };
+        EstanteCatalogoRespostDto favoritos = new FavoritosRespostDto { IdUsuario = 1, Jogos = [] };
+        EstanteCatalogoRespostDto pretendeJogar = new PretendeJogarRespostDto { IdUsuario = 1, Jogos = [] };
 
         RegraEstanteCatalogo regraFavoritos = new RegraEstanteFavoritos();
         RegraEstanteCatalogo regraPretendeJogar = new RegraEstantePretendeJogar();
@@ -35,27 +36,38 @@ public class RegraEstanteCatalogoTests
     }
 
     [Fact]
-    public void RegraEstanteFavoritos_AtualizarLoggers_IncrementaEDecrementaOsTresLoggersComSeguranca()
+    public void RegraEstanteFavoritosEPretendeJogar_CriarComandoImpactoLoggers_DefineDeltasPolimorficosCorretamente()
     {
-        RegraEstanteCatalogo regra = new RegraEstanteFavoritos();
-        var jogoLogger = new JogoLogger { IdJogo = 10 };
-        var generoGlobal = new GeneroLogger { Genero = Generos.Rpg };
-        var generoUsuario = new GeneroLogger { IdUsuario = 5, Genero = Generos.Rpg };
-        var usuarioLogger = new UsuarioLogger { IdUsuario = 5 };
+        var jogo = new JogoCatalogoRespostDto
+        {
+            IdJogo = 10,
+            SteamAppId = 292030,
+            Nome = "The Witcher 3",
+            Descricao = "RPG",
+            Imagem = "img",
+            Desenvolvedora = "CDPR",
+            Publicadora = "CDPR",
+            Generos = [Generos.Rpg, Generos.Rpg, Generos.Aventura]
+        };
 
-        regra.AtualizarLoggers(jogoLogger, [generoGlobal, generoUsuario], usuarioLogger, adicionando: true);
+        RegraEstanteCatalogo regraFavoritos = new RegraEstanteFavoritos();
+        RegraEstanteCatalogo regraPretende = new RegraEstantePretendeJogar();
 
-        Assert.Equal(1UL, jogoLogger.PresencaFavoritos);
-        Assert.Equal(1UL, generoGlobal.PresencaFavoritos);
-        Assert.Equal(1UL, generoUsuario.PresencaFavoritos);
-        Assert.Equal(1UL, usuarioLogger.PresencaFavoritos);
+        var impactoAddFav = regraFavoritos.CriarComandoImpactoLoggers(idUsuario: 5, jogo, adicionando: true);
+        Assert.Equal(1, impactoAddFav.DeltaFavoritosJogo);
+        Assert.Equal(1, impactoAddFav.DeltaFavoritosGenero);
+        Assert.Equal(1, impactoAddFav.DeltaFavoritosUsuario);
+        Assert.Equal(0, impactoAddFav.DeltaPretendeJogarJogo);
+        Assert.Equal(2, impactoAddFav.Generos.Count);
 
-        regra.AtualizarLoggers(jogoLogger, [generoGlobal, generoUsuario], usuarioLogger, adicionando: false);
-        regra.AtualizarLoggers(jogoLogger, [generoGlobal, generoUsuario], usuarioLogger, adicionando: false);
+        var impactoRemFav = regraFavoritos.CriarComandoImpactoLoggers(idUsuario: 5, jogo, adicionando: false);
+        Assert.Equal(-1, impactoRemFav.DeltaFavoritosJogo);
+        Assert.Equal(-1, impactoRemFav.DeltaFavoritosGenero);
+        Assert.Equal(-1, impactoRemFav.DeltaFavoritosUsuario);
 
-        Assert.Equal(0UL, jogoLogger.PresencaFavoritos);
-        Assert.Equal(0UL, generoGlobal.PresencaFavoritos);
-        Assert.Equal(0UL, generoUsuario.PresencaFavoritos);
-        Assert.Equal(0UL, usuarioLogger.PresencaFavoritos);
+        var impactoAddPretende = regraPretende.CriarComandoImpactoLoggers(idUsuario: 5, jogo, adicionando: true);
+        Assert.Equal(1, impactoAddPretende.DeltaPretendeJogarJogo);
+        Assert.Equal(1, impactoAddPretende.DeltaPretendeJogarGenero);
+        Assert.Equal(0, impactoAddPretende.DeltaFavoritosUsuario);
     }
 }
