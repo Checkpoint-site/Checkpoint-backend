@@ -1,14 +1,18 @@
+using Domain.Dtos.Catalogo.Respost;
+using Domain.Dtos.Estantes.Respost;
+using Domain.Dtos.Loggers.Commands;
+using Domain.Enum;
 using Domain.Exceptions.Common;
-using Domain.Model;
 
 namespace Application.Strategies.Estantes;
 
 public class RegraEstanteFavoritos : RegraEstanteCatalogo
 {
-    public override string TipoEstante => "favoritos";
+    public override TipoEstante TipoEstante => TipoEstante.Favoritos;
+    public override string ChaveExibicao => "favoritos";
     public override int LimiteMaximoJogos => 100;
 
-    public override void ValidarAdicaoJogo(Catalogo estante, Jogo jogo)
+    public override void ValidarAdicaoJogo(EstanteCatalogoRespostDto estante, JogoCatalogoRespostDto jogo)
     {
         base.ValidarAdicaoJogo(estante, jogo);
 
@@ -18,24 +22,21 @@ public class RegraEstanteFavoritos : RegraEstanteCatalogo
         }
     }
 
-    public override void AtualizarLoggers(
-        JogoLogger jogoLogger,
-        IEnumerable<GeneroLogger> generoLoggers,
-        UsuarioLogger usuarioLogger,
+    public override ImpactoEngajamentoEstanteCommandDto CriarComandoImpactoLoggers(
+        int idUsuario,
+        JogoCatalogoRespostDto jogo,
         bool adicionando)
     {
-        var agora = DateTime.UtcNow;
+        var delta = ObterDelta(adicionando);
 
-        jogoLogger.PresencaFavoritos = AjustarContador(jogoLogger.PresencaFavoritos, adicionando);
-        jogoLogger.UltimaAtualizacao = agora;
-
-        usuarioLogger.PresencaFavoritos = AjustarContador(usuarioLogger.PresencaFavoritos, adicionando);
-        usuarioLogger.UltimaAtualizacao = agora;
-
-        foreach (var generoLogger in generoLoggers)
+        return new ImpactoEngajamentoEstanteCommandDto
         {
-            generoLogger.PresencaFavoritos = AjustarContador(generoLogger.PresencaFavoritos, adicionando);
-            generoLogger.UltimaAtualizacao = agora;
-        }
+            IdJogo = jogo.IdJogo,
+            IdUsuario = idUsuario,
+            Generos = jogo.Generos.Distinct().ToList(),
+            DeltaFavoritosJogo = delta,
+            DeltaFavoritosGenero = delta,
+            DeltaFavoritosUsuario = delta
+        };
     }
 }

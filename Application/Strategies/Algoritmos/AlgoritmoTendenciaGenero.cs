@@ -1,12 +1,14 @@
-using Domain.Model;
+using Domain.Dtos.Catalogo.Respost;
+using Domain.Enum;
 
 namespace Application.Strategies.Algoritmos;
 
 public class AlgoritmoTendenciaGenero : AlgoritmoCuradoriaCatalogo
 {
-    public override string NomeAlgoritmo => "tendencia";
+    public override TipoAlgoritmoCuradoria TipoAlgoritmo => TipoAlgoritmoCuradoria.Tendencia;
+    public override string ChaveExibicao => "tendencia";
 
-    public override double CalcularPontuacao(Jogo jogo, double afinidadeBusca, ContextoCuradoria contexto)
+    public override double CalcularPontuacao(JogoCatalogoRespostDto jogo, double afinidadeBusca, ContextoCuradoria contexto)
     {
         var afinidadeGenero = contexto.CalcularAfinidadeGenerosDoJogo(jogo);
         var jogoLogger = contexto.ObterJogoLogger(jogo.IdJogo);

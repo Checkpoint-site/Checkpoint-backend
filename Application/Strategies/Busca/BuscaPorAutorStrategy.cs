@@ -1,21 +1,22 @@
-using Domain.Model;
+using Domain.Dtos.Catalogo.Respost;
+using Domain.Enum;
 
 namespace Application.Strategies.Busca;
 
 public class BuscaPorAutorStrategy : EstrategiaBuscaCatalogo
 {
-    public override string TipoBusca => "autor";
+    public override TipoBuscaCatalogo TipoBusca => TipoBuscaCatalogo.Autor;
 
-    public override bool AtendeCriterio(Jogo jogo, string termo)
+    public override bool AtendeCriterio(JogoCatalogoRespostDto jogo, string jogoBuscado)
     {
-        var filtro = termo.Trim();
+        var filtro = jogoBuscado.Trim();
         return jogo.Desenvolvedora.Contains(filtro, StringComparison.OrdinalIgnoreCase)
             || jogo.Publicadora.Contains(filtro, StringComparison.OrdinalIgnoreCase);
     }
 
-    public override double CalcularAfinidade(Jogo jogo, string termo)
+    public override double CalcularAfinidade(JogoCatalogoRespostDto jogo, string jogoBuscado)
     {
-        var filtro = termo.Trim();
+        var filtro = jogoBuscado.Trim();
 
         if (jogo.Desenvolvedora.Equals(filtro, StringComparison.OrdinalIgnoreCase))
         {

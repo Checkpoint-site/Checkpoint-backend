@@ -1,14 +1,18 @@
+using Domain.Dtos.Catalogo.Respost;
+using Domain.Dtos.Estantes.Respost;
+using Domain.Dtos.Loggers.Commands;
+using Domain.Enum;
 using Domain.Exceptions.Common;
-using Domain.Model;
 
 namespace Application.Strategies.Estantes;
 
 public abstract class RegraEstanteCatalogo
 {
-    public abstract string TipoEstante { get; }
+    public abstract TipoEstante TipoEstante { get; }
+    public abstract string ChaveExibicao { get; }
     public abstract int LimiteMaximoJogos { get; }
 
-    public virtual void ValidarAdicaoJogo(Catalogo estante, Jogo jogo)
+    public virtual void ValidarAdicaoJogo(EstanteCatalogoRespostDto estante, JogoCatalogoRespostDto jogo)
     {
         if (estante.Jogos.Contains(jogo.IdJogo))
         {
@@ -17,23 +21,14 @@ public abstract class RegraEstanteCatalogo
 
         if (estante.Jogos.Count >= LimiteMaximoJogos)
         {
-            throw new ValidationException($"Limite máximo de {LimiteMaximoJogos} jogos atingido para a estante '{TipoEstante}'.");
+            throw new ValidationException($"Limite máximo de {LimiteMaximoJogos} jogos atingido para a estante '{ChaveExibicao}'.");
         }
     }
 
-    public abstract void AtualizarLoggers(
-        JogoLogger jogoLogger,
-        IEnumerable<GeneroLogger> generoLoggers,
-        UsuarioLogger usuarioLogger,
+    public abstract ImpactoEngajamentoEstanteCommandDto CriarComandoImpactoLoggers(
+        int idUsuario,
+        JogoCatalogoRespostDto jogo,
         bool adicionando);
 
-    protected static ulong AjustarContador(ulong atual, bool adicionando)
-    {
-        if (adicionando)
-        {
-            return atual + 1UL;
-        }
-
-        return atual > 0UL ? atual - 1UL : 0UL;
-    }
+    protected static int ObterDelta(bool adicionando) => adicionando ? 1 : -1;
 }

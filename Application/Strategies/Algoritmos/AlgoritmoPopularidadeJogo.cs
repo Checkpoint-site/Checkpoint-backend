@@ -1,12 +1,14 @@
-using Domain.Model;
+using Domain.Dtos.Catalogo.Respost;
+using Domain.Enum;
 
 namespace Application.Strategies.Algoritmos;
 
 public class AlgoritmoPopularidadeJogo : AlgoritmoCuradoriaCatalogo
 {
-    public override string NomeAlgoritmo => "popularidade";
+    public override TipoAlgoritmoCuradoria TipoAlgoritmo => TipoAlgoritmoCuradoria.Popularidade;
+    public override string ChaveExibicao => "popularidade";
 
-    public override double CalcularPontuacao(Jogo jogo, double afinidadeBusca, ContextoCuradoria contexto)
+    public override double CalcularPontuacao(JogoCatalogoRespostDto jogo, double afinidadeBusca, ContextoCuradoria contexto)
     {
         var jogoLogger = contexto.ObterJogoLogger(jogo.IdJogo);
         var engajamentoProprioJogo = ContextoCuradoria.CalcularForcaJogoLogger(jogoLogger);

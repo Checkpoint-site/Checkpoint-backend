@@ -1,20 +1,21 @@
-using Domain.Model;
+using Domain.Dtos.Catalogo.Respost;
+using Domain.Enum;
 
 namespace Application.Strategies.Busca;
 
 public class BuscaPorNomeStrategy : EstrategiaBuscaCatalogo
 {
-    public override string TipoBusca => "nome";
+    public override TipoBuscaCatalogo TipoBusca => TipoBuscaCatalogo.Nome;
 
-    public override bool AtendeCriterio(Jogo jogo, string termo)
+    public override bool AtendeCriterio(JogoCatalogoRespostDto jogo, string jogoBuscado)
     {
-        var filtro = termo.Trim();
+        var filtro = jogoBuscado.Trim();
         return jogo.Nome.Contains(filtro, StringComparison.OrdinalIgnoreCase);
     }
 
-    public override double CalcularAfinidade(Jogo jogo, string termo)
+    public override double CalcularAfinidade(JogoCatalogoRespostDto jogo, string jogoBuscado)
     {
-        var filtro = termo.Trim();
+        var filtro = jogoBuscado.Trim();
 
         if (jogo.Nome.Equals(filtro, StringComparison.OrdinalIgnoreCase))
         {

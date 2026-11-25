@@ -1,15 +1,17 @@
-using Domain.Model;
+using Domain.Dtos.Catalogo.Respost;
+using Domain.Enum;
 
 namespace Application.Strategies.Algoritmos;
 
 public abstract class AlgoritmoCuradoriaCatalogo
 {
-    public abstract string NomeAlgoritmo { get; }
+    public abstract TipoAlgoritmoCuradoria TipoAlgoritmo { get; }
+    public abstract string ChaveExibicao { get; }
 
-    public abstract double CalcularPontuacao(Jogo jogo, double afinidadeBusca, ContextoCuradoria contexto);
+    public abstract double CalcularPontuacao(JogoCatalogoRespostDto jogo, double afinidadeBusca, ContextoCuradoria contexto);
 
     public IReadOnlyList<JogoCuradoResultado> Ordenar(
-        IEnumerable<(Jogo Jogo, double Afinidade)> candidatos,
+        IEnumerable<(JogoCatalogoRespostDto Jogo, double Afinidade)> candidatos,
         ContextoCuradoria contexto)
     {
         return candidatos

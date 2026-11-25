@@ -1,25 +1,17 @@
 using Domain.Dtos.Catalogo;
+using Domain.Dtos.Catalogo.Respost;
+using Domain.Dtos.Loggers.Respost;
 using Domain.Enum;
-using Domain.Model;
 
 namespace Application.Strategies.Algoritmos;
 
-public record JogoCuradoResultado(
-    Jogo Jogo,
-    double PontuacaoCuradoria,
-    double MediaFogueiras,
-    OfertaJogoSteamDto? Oferta = null
-);
-
 public class ContextoCuradoria
 {
-    public IReadOnlyDictionary<int, JogoLogger> JogoLoggersPorJogo { get; init; } = new Dictionary<int, JogoLogger>();
-    public IReadOnlyDictionary<Generos, GeneroLogger> GeneroLoggersGlobais { get; init; } = new Dictionary<Generos, GeneroLogger>();
-    public IReadOnlyDictionary<Generos, GeneroLogger> GeneroLoggersUsuario { get; init; } = new Dictionary<Generos, GeneroLogger>();
+    public IReadOnlyDictionary<int, JogoLoggerRespostDto> JogoLoggersPorJogo { get; init; } = new Dictionary<int, JogoLoggerRespostDto>();
+    public IReadOnlyDictionary<Generos, GeneroLoggerRespostDto> GeneroLoggers { get; init; } = new Dictionary<Generos, GeneroLoggerRespostDto>();
     public IReadOnlyDictionary<int, OfertaJogoSteamDto> OfertasPorSteamAppId { get; init; } = new Dictionary<int, OfertaJogoSteamDto>();
-    public bool UsuarioAutenticado { get; init; }
 
-    public JogoLogger? ObterJogoLogger(int idJogo)
+    public JogoLoggerRespostDto? ObterJogoLogger(int idJogo)
     {
         return JogoLoggersPorJogo.TryGetValue(idJogo, out var logger) ? logger : null;
     }
@@ -29,7 +21,7 @@ public class ContextoCuradoria
         return OfertasPorSteamAppId.TryGetValue(steamAppId, out var oferta) ? oferta : null;
     }
 
-    public static double CalcularMediaFogueiras(JogoLogger? logger)
+    public static double CalcularMediaFogueiras(JogoLoggerRespostDto? logger)
     {
         if (logger is null || logger.PresencaPost == 0)
         {
@@ -40,7 +32,7 @@ public class ContextoCuradoria
         return Math.Round(Math.Clamp(media, 0.0, 5.0), 2);
     }
 
-    public static double CalcularForcaJogoLogger(JogoLogger? logger)
+    public static double CalcularForcaJogoLogger(JogoLoggerRespostDto? logger)
     {
         if (logger is null)
         {
@@ -57,7 +49,7 @@ public class ContextoCuradoria
              + (logger.QuantidadeCurtida * 1.5);
     }
 
-    public static double CalcularForcaGeneroLogger(GeneroLogger? logger)
+    public static double CalcularForcaGeneroLogger(GeneroLoggerRespostDto? logger)
     {
         if (logger is null)
         {
@@ -71,7 +63,7 @@ public class ContextoCuradoria
              + (logger.QuantidadeCurtida * 1.0);
     }
 
-    public double CalcularAfinidadeGenerosDoJogo(Jogo jogo)
+    public double CalcularAfinidadeGenerosDoJogo(JogoCatalogoRespostDto jogo)
     {
         if (jogo.Generos.Count == 0)
         {
@@ -82,19 +74,8 @@ public class ContextoCuradoria
 
         foreach (var genero in jogo.Generos)
         {
-            GeneroLoggersGlobais.TryGetValue(genero, out var globalLogger);
-            var scoreGlobal = CalcularForcaGeneroLogger(globalLogger);
-
-            if (UsuarioAutenticado)
-            {
-                GeneroLoggersUsuario.TryGetValue(genero, out var userLogger);
-                var scoreUsuario = CalcularForcaGeneroLogger(userLogger);
-                soma += (scoreUsuario * 0.70) + (scoreGlobal * 0.30);
-            }
-            else
-            {
-                soma += scoreGlobal;
-            }
+            GeneroLoggers.TryGetValue(genero, out var logger);
+            soma += CalcularForcaGeneroLogger(logger);
         }
 
         return soma / jogo.Generos.Count;

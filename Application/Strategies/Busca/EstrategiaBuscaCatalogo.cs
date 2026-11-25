@@ -1,41 +1,44 @@
+using Domain.Dtos.Catalogo.Respost;
+using Domain.Enum;
 using Domain.Exceptions.Common;
-using Domain.Model;
 
 namespace Application.Strategies.Busca;
 
 public abstract class EstrategiaBuscaCatalogo
 {
-    public abstract string TipoBusca { get; }
+    public abstract TipoBuscaCatalogo TipoBusca { get; }
 
-    public virtual void ValidarTermo(string termo)
+    public virtual string ChaveExibicao => TipoBusca.ToString().ToLowerInvariant();
+
+    public virtual void ValidarBusca(string jogoBuscado)
     {
-        if (string.IsNullOrWhiteSpace(termo))
+        if (string.IsNullOrWhiteSpace(jogoBuscado))
         {
-            throw new ValidationException("O termo de busca é obrigatório.");
+            throw new ValidationException("O jogo buscado é obrigatório.");
         }
 
-        var normalizado = termo.Trim();
+        var normalizado = jogoBuscado.Trim();
         if (normalizado.Length < 2 || normalizado.Length > 100)
         {
-            throw new ValidationException("O termo de busca deve conter entre 2 e 100 caracteres.");
+            throw new ValidationException("O jogo buscado deve conter entre 2 e 100 caracteres.");
         }
     }
 
-    public abstract bool AtendeCriterio(Jogo jogo, string termo);
+    public abstract bool AtendeCriterio(JogoCatalogoRespostDto jogo, string jogoBuscado);
 
-    public abstract double CalcularAfinidade(Jogo jogo, string termo);
+    public abstract double CalcularAfinidade(JogoCatalogoRespostDto jogo, string jogoBuscado);
 
-    public IReadOnlyList<(Jogo Jogo, double Afinidade)> FiltrarCandidatos(IEnumerable<Jogo> candidatos, string termo)
+    public IReadOnlyList<(JogoCatalogoRespostDto Jogo, double Afinidade)> FiltrarCandidatos(IEnumerable<JogoCatalogoRespostDto> candidatos, string jogoBuscado)
     {
-        ValidarTermo(termo);
+        ValidarBusca(jogoBuscado);
 
-        var resultado = new List<(Jogo Jogo, double Afinidade)>();
+        var resultado = new List<(JogoCatalogoRespostDto Jogo, double Afinidade)>();
 
         foreach (var jogo in candidatos)
         {
-            if (AtendeCriterio(jogo, termo))
+            if (AtendeCriterio(jogo, jogoBuscado))
             {
-                var afinidade = CalcularAfinidade(jogo, termo);
+                var afinidade = CalcularAfinidade(jogo, jogoBuscado);
                 resultado.Add((jogo, afinidade));
             }
         }

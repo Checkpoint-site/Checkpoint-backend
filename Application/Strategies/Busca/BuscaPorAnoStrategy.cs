@@ -1,15 +1,16 @@
+using Domain.Dtos.Catalogo.Respost;
+using Domain.Enum;
 using Domain.Exceptions.Common;
-using Domain.Model;
 
 namespace Application.Strategies.Busca;
 
 public class BuscaPorAnoStrategy : EstrategiaBuscaCatalogo
 {
-    public override string TipoBusca => "ano";
+    public override TipoBuscaCatalogo TipoBusca => TipoBuscaCatalogo.Ano;
 
-    public override void ValidarTermo(string termo)
+    public override void ValidarBusca(string jogoBuscado)
     {
-        if (string.IsNullOrWhiteSpace(termo) || !int.TryParse(termo.Trim(), out var ano))
+        if (string.IsNullOrWhiteSpace(jogoBuscado) || !int.TryParse(jogoBuscado.Trim(), out var ano))
         {
             throw new ValidationException("Para busca por ano, informe um ano numérico válido de 4 dígitos (ex.: 2015).");
         }
@@ -21,13 +22,13 @@ public class BuscaPorAnoStrategy : EstrategiaBuscaCatalogo
         }
     }
 
-    public override bool AtendeCriterio(Jogo jogo, string termo)
+    public override bool AtendeCriterio(JogoCatalogoRespostDto jogo, string jogoBuscado)
     {
-        return int.TryParse(termo.Trim(), out var ano) && jogo.AnoLancamento == ano;
+        return int.TryParse(jogoBuscado.Trim(), out var ano) && jogo.AnoLancamento == ano;
     }
 
-    public override double CalcularAfinidade(Jogo jogo, string termo)
+    public override double CalcularAfinidade(JogoCatalogoRespostDto jogo, string jogoBuscado)
     {
-        return AtendeCriterio(jogo, termo) ? 1.0 : 0.0;
+        return AtendeCriterio(jogo, jogoBuscado) ? 1.0 : 0.0;
     }
 }

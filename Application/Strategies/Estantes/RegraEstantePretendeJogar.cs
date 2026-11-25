@@ -1,29 +1,29 @@
-using Domain.Model;
+using Domain.Dtos.Catalogo.Respost;
+using Domain.Dtos.Loggers.Commands;
+using Domain.Enum;
 
 namespace Application.Strategies.Estantes;
 
 public class RegraEstantePretendeJogar : RegraEstanteCatalogo
 {
-    public override string TipoEstante => "pretende-jogar";
+    public override TipoEstante TipoEstante => TipoEstante.PretendeJogar;
+    public override string ChaveExibicao => "pretende-jogar";
     public override int LimiteMaximoJogos => 500;
 
-    public override void AtualizarLoggers(
-        JogoLogger jogoLogger,
-        IEnumerable<GeneroLogger> generoLoggers,
-        UsuarioLogger usuarioLogger,
+    public override ImpactoEngajamentoEstanteCommandDto CriarComandoImpactoLoggers(
+        int idUsuario,
+        JogoCatalogoRespostDto jogo,
         bool adicionando)
     {
-        var agora = DateTime.UtcNow;
+        var delta = ObterDelta(adicionando);
 
-        jogoLogger.PresencaPretendeJogar = AjustarContador(jogoLogger.PresencaPretendeJogar, adicionando);
-        jogoLogger.UltimaAtualizacao = agora;
-
-        usuarioLogger.UltimaAtualizacao = agora;
-
-        foreach (var generoLogger in generoLoggers)
+        return new ImpactoEngajamentoEstanteCommandDto
         {
-            generoLogger.PresencaPretendeJogar = AjustarContador(generoLogger.PresencaPretendeJogar, adicionando);
-            generoLogger.UltimaAtualizacao = agora;
-        }
+            IdJogo = jogo.IdJogo,
+            IdUsuario = idUsuario,
+            Generos = jogo.Generos.Distinct().ToList(),
+            DeltaPretendeJogarJogo = delta,
+            DeltaPretendeJogarGenero = delta
+        };
     }
 }

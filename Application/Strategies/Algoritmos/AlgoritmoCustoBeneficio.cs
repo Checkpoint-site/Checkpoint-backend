@@ -1,12 +1,14 @@
-using Domain.Model;
+using Domain.Dtos.Catalogo.Respost;
+using Domain.Enum;
 
 namespace Application.Strategies.Algoritmos;
 
 public class AlgoritmoCustoBeneficio : AlgoritmoCuradoriaCatalogo
 {
-    public override string NomeAlgoritmo => "custo-beneficio";
+    public override TipoAlgoritmoCuradoria TipoAlgoritmo => TipoAlgoritmoCuradoria.CustoBeneficio;
+    public override string ChaveExibicao => "custo-beneficio";
 
-    public override double CalcularPontuacao(Jogo jogo, double afinidadeBusca, ContextoCuradoria contexto)
+    public override double CalcularPontuacao(JogoCatalogoRespostDto jogo, double afinidadeBusca, ContextoCuradoria contexto)
     {
         var notaBase = (double)(jogo.NotaMetacritic ?? 70);
         var jogoLogger = contexto.ObterJogoLogger(jogo.IdJogo);
