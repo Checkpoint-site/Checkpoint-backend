@@ -1,5 +1,4 @@
-using System.Security.Claims;
-using Api.Extension;
+using Application.Dtos.Catalogo.Requests;
 using Application.Dtos.Catalogo.Responses;
 using Application.Interfaces;
 
@@ -13,15 +12,20 @@ public static class CatalogoEndpoint
             .WithTags("Catálogo");
 
         group.MapGet("/busca", async (
-            string termo,
+            string jogoBuscado,
             string? tipo,
             string? algoritmo,
-            ClaimsPrincipal user,
             ICatalogoService service,
             CancellationToken cancellationToken) =>
         {
-            var idUsuario = user.ObterIdUsuarioOpcional();
-            var resposta = await service.BuscarAsync(tipo, termo, algoritmo, idUsuario, cancellationToken);
+            var request = new BuscarCatalogoRequestDto
+            {
+                JogoBuscado = jogoBuscado,
+                Tipo = tipo,
+                Algoritmo = algoritmo
+            };
+
+            var resposta = await service.BuscarAsync(request, cancellationToken);
             return TypedResults.Ok(resposta);
         })
         .WithName("BuscarJogosCatalogo")
@@ -33,12 +37,15 @@ public static class CatalogoEndpoint
 
         group.MapGet("/destaques", async (
             string? algoritmo,
-            ClaimsPrincipal user,
             ICatalogoService service,
             CancellationToken cancellationToken) =>
         {
-            var idUsuario = user.ObterIdUsuarioOpcional();
-            var resposta = await service.ObterDestaquesAsync(algoritmo, idUsuario, cancellationToken);
+            var request = new ObterDestaquesCatalogoRequestDto
+            {
+                Algoritmo = algoritmo
+            };
+
+            var resposta = await service.ObterDestaquesAsync(request, cancellationToken);
             return TypedResults.Ok(resposta);
         })
         .WithName("ObterDestaquesCatalogo")
@@ -49,17 +56,15 @@ public static class CatalogoEndpoint
         .ProducesProblem(StatusCodes.Status502BadGateway);
 
         group.MapGet("/tendencias/generos", async (
-            ClaimsPrincipal user,
             ICatalogoService service,
             CancellationToken cancellationToken) =>
         {
-            var idUsuario = user.ObterIdUsuarioOpcional();
-            var resposta = await service.ObterTendenciasGenerosAsync(idUsuario, cancellationToken);
+            var resposta = await service.ObterTendenciasGenerosAsync(cancellationToken);
             return TypedResults.Ok(resposta);
         })
         .WithName("ObterTendenciasGeneros")
-        .WithSummary("Obtém o termômetro de tendências por gênero (GeneroLogger)")
-        .WithDescription("Retorna a pontuação acumulada de engajamento por gênero na comunidade e, se autenticado, a afinidade individual do jogador.")
+        .WithSummary("Obtém o termômetro global de tendências por gênero (GeneroLogger)")
+        .WithDescription("Retorna a pontuação e os contadores acumulados dos 12 gêneros da comunidade.")
         .Produces<TendenciasGenerosResponseDto>(StatusCodes.Status200OK);
 
         group.MapGet("/comunidade/usuarios-populares", async (
@@ -67,7 +72,12 @@ public static class CatalogoEndpoint
             ICatalogoService service,
             CancellationToken cancellationToken) =>
         {
-            var resposta = await service.ObterUsuariosPopularesAsync(limite ?? 10, cancellationToken);
+            var request = new ObterUsuariosPopularesRequestDto
+            {
+                Limite = limite ?? 10
+            };
+
+            var resposta = await service.ObterUsuariosPopularesAsync(request, cancellationToken);
             return TypedResults.Ok(resposta);
         })
         .WithName("ObterUsuariosPopularesComunidade")
@@ -81,7 +91,12 @@ public static class CatalogoEndpoint
             ICatalogoService service,
             CancellationToken cancellationToken) =>
         {
-            var resposta = await service.ObterDetalhesPorSteamAppIdAsync(steamAppId, cancellationToken);
+            var request = new ObterDetalhesJogoRequestDto
+            {
+                SteamAppId = steamAppId
+            };
+
+            var resposta = await service.ObterDetalhesPorSteamAppIdAsync(request, cancellationToken);
             return TypedResults.Ok(resposta);
         })
         .WithName("ObterDetalhesJogoPorSteamAppId")

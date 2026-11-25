@@ -18,7 +18,7 @@ Este repositório concentra a **Web API e as regras de negócio** da plataforma 
 - 🎮 **Catálogo de Jogos (*Keyless* Steam Storefront API):** Consulta em `pt-BR`, cache distribuído em **Redis** e sincronização sob demanda (*Lazy Sync* com *fallback* resiliente) no **SQL Server** via `store.steampowered.com/api`, sem necessidade de API Key privada.
 - 🔎 **Busca Polimórfica (`Application/Strategies/Busca`):** Estratégias especializadas para busca por **Nome**, **Ano de Lançamento** e **Autor** (*Desenvolvedora* / *Publicadora*).
 - 📊 **Trinca de Loggers de Engajamento (`EngajamentoLogger`):**
-  - `GeneroLogger`: termômetro híbrido (tendência global da comunidade + afinidade individual do jogador).
+  - `GeneroLogger`: termômetro global dos 12 gêneros da comunidade (presença em posts, comentários, favoritos, lista de desejos e curtidas).
   - `JogoLogger`: engajamento próprio de cada título (favoritos, lista de desejos, posts e soma de fogueiras), evitando que grandes jogos de gêneros nichados fiquem escondidos.
   - `UsuarioLogger`: relevância dos membros da comunidade para destacar criadores populares e seus relatos.
 - 🧠 **Algoritmos Polimórficos de Curadoria (`Application/Strategies/Algoritmos`):** Ordenação dinâmica por **Popularidade do Jogo**, **Tendência de Gênero** e **Custo-Benefício**.

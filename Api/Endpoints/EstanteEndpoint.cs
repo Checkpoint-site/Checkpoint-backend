@@ -52,7 +52,13 @@ public static class EstanteEndpoint
             CancellationToken cancellationToken) =>
         {
             var idUsuario = user.ObterIdUsuarioObrigatorio();
-            var resposta = await service.AdicionarJogoAsync(idUsuario, tipoEstante, steamAppId, cancellationToken);
+            var request = new AlterarJogoEstanteRequestDto
+            {
+                TipoEstante = tipoEstante,
+                SteamAppId = steamAppId
+            };
+
+            var resposta = await service.AdicionarJogoAsync(idUsuario, request, cancellationToken);
             return TypedResults.Ok(resposta);
         })
         .WithName("AdicionarJogoEstante")
@@ -72,7 +78,13 @@ public static class EstanteEndpoint
             CancellationToken cancellationToken) =>
         {
             var idUsuario = user.ObterIdUsuarioObrigatorio();
-            var resposta = await service.RemoverJogoAsync(idUsuario, tipoEstante, steamAppId, cancellationToken);
+            var request = new AlterarJogoEstanteRequestDto
+            {
+                TipoEstante = tipoEstante,
+                SteamAppId = steamAppId
+            };
+
+            var resposta = await service.RemoverJogoAsync(idUsuario, request, cancellationToken);
             return TypedResults.Ok(resposta);
         })
         .WithName("RemoverJogoEstante")

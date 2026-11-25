@@ -1,3 +1,4 @@
+using Application.Factories;
 using Application.Interfaces;
 using Application.Services;
 using Application.Strategies.Algoritmos;
@@ -37,13 +38,16 @@ public static class InjecaoDependencia
         services.AddScoped<EstrategiaBuscaCatalogo, BuscaPorNomeStrategy>();
         services.AddScoped<EstrategiaBuscaCatalogo, BuscaPorAnoStrategy>();
         services.AddScoped<EstrategiaBuscaCatalogo, BuscaPorAutorStrategy>();
+        services.AddScoped<IBuscaCatalogoStrategyFactory, BuscaCatalogoStrategyFactory>();
 
         services.AddScoped<AlgoritmoCuradoriaCatalogo, AlgoritmoPopularidadeJogo>();
         services.AddScoped<AlgoritmoCuradoriaCatalogo, AlgoritmoTendenciaGenero>();
         services.AddScoped<AlgoritmoCuradoriaCatalogo, AlgoritmoCustoBeneficio>();
+        services.AddScoped<IAlgoritmoCuradoriaFactory, AlgoritmoCuradoriaFactory>();
 
         services.AddScoped<RegraEstanteCatalogo, RegraEstanteFavoritos>();
         services.AddScoped<RegraEstanteCatalogo, RegraEstantePretendeJogar>();
+        services.AddScoped<IRegraEstanteFactory, RegraEstanteFactory>();
 
         services.AddScoped<ICatalogoService, CatalogoService>();
         services.AddScoped<IEstanteService, EstanteService>();
