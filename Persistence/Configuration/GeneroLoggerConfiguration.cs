@@ -19,19 +19,8 @@ public class GeneroLoggerConfiguration : IEntityTypeConfiguration<GeneroLogger>
             .IsRequired()
             .HasDefaultValue(0L);
 
-        builder.HasOne<Usuario>()
-            .WithMany()
-            .HasForeignKey(g => g.IdUsuario)
-            .OnDelete(DeleteBehavior.Restrict);
-
         builder.HasIndex(g => g.Genero)
             .IsUnique()
-            .HasFilter("[IdUsuario] IS NULL")
-            .HasDatabaseName("IX_GeneroLoggers_Genero_Global");
-
-        builder.HasIndex(g => new { g.IdUsuario, g.Genero })
-            .IsUnique()
-            .HasFilter("[IdUsuario] IS NOT NULL")
-            .HasDatabaseName("IX_GeneroLoggers_Usuario_Genero");
+            .HasDatabaseName("IX_GeneroLoggers_Genero");
     }
 }

@@ -411,9 +411,6 @@ namespace Persistence.Migrations
                     b.Property<int>("Genero")
                         .HasColumnType("int");
 
-                    b.Property<int?>("IdUsuario")
-                        .HasColumnType("int");
-
                     b.Property<long>("PresencaPretendeJogar")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
@@ -421,13 +418,8 @@ namespace Persistence.Migrations
 
                     b.HasIndex("Genero")
                         .IsUnique()
-                        .HasDatabaseName("IX_GeneroLoggers_Genero_Global")
-                        .HasFilter("[IdUsuario] IS NULL");
-
-                    b.HasIndex("IdUsuario", "Genero")
-                        .IsUnique()
-                        .HasDatabaseName("IX_GeneroLoggers_Usuario_Genero")
-                        .HasFilter("[IdUsuario] IS NOT NULL");
+                        .HasDatabaseName("IX_GeneroLoggers_Genero")
+                        .HasFilter("[Genero] IS NOT NULL");
 
                     b.ToTable("GeneroLoggers", (string)null);
                 });
@@ -576,11 +568,6 @@ namespace Persistence.Migrations
                         .HasForeignKey("Domain.Model.GeneroLogger", "IdLogger")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("Domain.Model.Usuario", null)
-                        .WithMany()
-                        .HasForeignKey("IdUsuario")
-                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Domain.Model.JogoLogger", b =>
