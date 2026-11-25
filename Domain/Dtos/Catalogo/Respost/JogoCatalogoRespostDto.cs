@@ -1,0 +1,22 @@
+using Domain.Enum;
+
+namespace Domain.Dtos.Catalogo.Respost;
+
+public record JogoCatalogoRespostDto
+{
+    public int IdJogo { get; init; }
+    public required int SteamAppId { get; init; }
+    public required string Nome { get; init; }
+    public required IReadOnlyList<Generos> Generos { get; init; }
+    public required string Descricao { get; init; }
+    public required string Imagem { get; init; }
+    public required string Desenvolvedora { get; init; }
+    public required string Publicadora { get; init; }
+    public string? DataLancamentoTexto { get; init; }
+    public int? AnoLancamento { get; init; }
+    public int? NotaMetacritic { get; init; }
+    public int TotalRecomendacoes { get; init; }
+    public bool Gratuito { get; init; }
+    public bool EmBreve { get; init; }
+    public DateTime SincronizadoEm { get; init; } = DateTime.UtcNow;
+}
