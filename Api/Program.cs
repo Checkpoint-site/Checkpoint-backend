@@ -1,8 +1,10 @@
-using DotNetEnv;
 using Api.Endpoints.Cadastro;
+using Api.Endpoints.Catalogo;
+using Api.Endpoints.Estantes;
 using Api.Endpoints.Login;
 using Api.Extension;
 using Api.Middleware;
+using DotNetEnv;
 
 Env.TraversePath().Load();
 
@@ -35,5 +37,7 @@ var api = app.MapGroup("/api/v1")
 
 api.MapLoginEndpoint();
 api.MapCadastroEndpoint();
+api.MapCatalogoEndpoint();
+api.MapEstanteEndpoint();
 
 app.Run();

@@ -10,7 +10,7 @@ O Checkpoint é uma rede social para gamers inspirada no Letterboxd, onde a fogu
 Este repositório é o backend responsável por regras de negócio, persistência e integração com a Steam Web API, consumido pelo frontend (`Checkpoint-frontend`).
 
 ### Escopo Funcional:
-- `Catalogo`: Consulta, sincronização e cache de metadados de jogos via Steam Web API.
+- `Catalogo`: Consulta, sincronização sob demanda (*Lazy Sync*) e cache Redis de metadados de jogos via Steam Storefront API pública (`store.steampowered.com/api`, sem API Key), além de estantes polimórficas (`Favoritos`, `PretendeJogar`) e loggers de engajamento (`GeneroLogger`, `JogoLogger`, `UsuarioLogger`).
 - `Usuarios`: Autenticação, perfis de jogadores, segurança (JWT), estatísticas e sistema de amigos/seguidores.
 - `Diario`: Registro de progresso de jogos (*Jogando*, *Zerado*, *Abandonado*), *Backlog* e *Wishlist*.
 - `Reviews`: Avaliações (notas), críticas de jogos e interações da comunidade.
