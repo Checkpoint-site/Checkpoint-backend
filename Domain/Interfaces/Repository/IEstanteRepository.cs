@@ -1,11 +1,12 @@
-using Domain.Model;
+using Domain.Dtos.Estantes.Commands;
+using Domain.Dtos.Estantes.Respost;
 
 namespace Domain.Interfaces.Repository;
 
 public interface IEstanteRepository
 {
-    Task<Favoritos?> ObterFavoritosPorUsuarioAsync(int idUsuario, CancellationToken cancellationToken = default);
-    Task<PretendeJogar?> ObterPretendeJogarPorUsuarioAsync(int idUsuario, CancellationToken cancellationToken = default);
-    Task<Favoritos> SalvarFavoritosAsync(Favoritos favoritos, CancellationToken cancellationToken = default);
-    Task<PretendeJogar> SalvarPretendeJogarAsync(PretendeJogar pretendeJogar, CancellationToken cancellationToken = default);
+    Task<FavoritosRespostDto?> ObterFavoritosPorUsuarioAsync(int idUsuario, CancellationToken cancellationToken = default);
+    Task<PretendeJogarRespostDto?> ObterPretendeJogarPorUsuarioAsync(int idUsuario, CancellationToken cancellationToken = default);
+    Task<FavoritosRespostDto> SalvarFavoritosAsync(SalvarFavoritosCommandDto command, CancellationToken cancellationToken = default);
+    Task<PretendeJogarRespostDto> SalvarPretendeJogarAsync(SalvarPretendeJogarCommandDto command, CancellationToken cancellationToken = default);
 }

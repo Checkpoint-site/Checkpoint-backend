@@ -1,18 +1,14 @@
 using Domain.Dtos.Catalogo;
-using Domain.Enum;
-using Domain.Model;
+using Domain.Dtos.Loggers.Commands;
+using Domain.Dtos.Loggers.Respost;
 
 namespace Domain.Interfaces.Repository;
 
 public interface IEngajamentoLoggerRepository
 {
-    Task<IReadOnlyList<GeneroLogger>> ObterGeneroLoggersGlobaisAsync(CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<GeneroLogger>> ObterGeneroLoggersPorUsuarioAsync(int idUsuario, CancellationToken cancellationToken = default);
-    Task<GeneroLogger> ObterOuCriarGeneroLoggerAsync(Generos genero, int? idUsuario, CancellationToken cancellationToken = default);
-    Task<JogoLogger?> ObterJogoLoggerAsync(int idJogo, CancellationToken cancellationToken = default);
-    Task<IReadOnlyDictionary<int, JogoLogger>> ObterJogoLoggersPorJogosAsync(IEnumerable<int> idsJogos, CancellationToken cancellationToken = default);
-    Task<JogoLogger> ObterOuCriarJogoLoggerAsync(int idJogo, CancellationToken cancellationToken = default);
-    Task<UsuarioLogger> ObterOuCriarUsuarioLoggerAsync(int idUsuario, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<GeneroLoggerRespostDto>> ObterGeneroLoggersAsync(CancellationToken cancellationToken = default);
+    Task<JogoLoggerRespostDto?> ObterJogoLoggerAsync(int idJogo, CancellationToken cancellationToken = default);
+    Task<IReadOnlyDictionary<int, JogoLoggerRespostDto>> ObterJogoLoggersPorJogosAsync(IEnumerable<int> idsJogos, CancellationToken cancellationToken = default);
+    Task AplicarImpactoEstanteAsync(ImpactoEngajamentoEstanteCommandDto command, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<UsuarioPopularComunidadeDto>> ObterUsuariosPopularesAsync(int limite = 10, CancellationToken cancellationToken = default);
-    Task SalvarAlteracoesAsync(CancellationToken cancellationToken = default);
 }
