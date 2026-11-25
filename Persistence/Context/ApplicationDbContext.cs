@@ -1,16 +1,24 @@
-using Microsoft.EntityFrameworkCore;
 using Domain.Model;
+using Microsoft.EntityFrameworkCore;
 
 namespace Persistence.Context;
 
-public class ApplicationDbContext : DbContext
+public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : DbContext(options)
 {
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
-    : base(options)
-    {
-    }
-
     public DbSet<Usuario> Usuarios { get; set; }
+    public DbSet<Jogo> Jogos { get; set; }
+    public DbSet<Catalogo> Catalogos { get; set; }
+    public DbSet<Favoritos> Favoritos { get; set; }
+    public DbSet<PretendeJogar> PretendeJogar { get; set; }
+    public DbSet<EngajamentoLogger> EngajamentoLoggers { get; set; }
+    public DbSet<GeneroLogger> GeneroLoggers { get; set; }
+    public DbSet<JogoLogger> JogoLoggers { get; set; }
+    public DbSet<UsuarioLogger> UsuarioLoggers { get; set; }
+    public DbSet<Post> Posts { get; set; }
+    public DbSet<Comentario> Comentarios { get; set; }
+    public DbSet<Curtida> Curtidas { get; set; }
+    public DbSet<CurtidaPost> CurtidasPosts { get; set; }
+    public DbSet<CurtidaComentario> CurtidasComentarios { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -19,5 +27,3 @@ public class ApplicationDbContext : DbContext
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
     }
 }
-
-
