@@ -1,7 +1,8 @@
 using Application.Dtos.Catalogo.Responses;
 using Application.Strategies.Algoritmos;
 using Domain.Dtos.Catalogo;
-using Domain.Model;
+using Domain.Dtos.Catalogo.Respost;
+using Domain.Dtos.Loggers.Respost;
 using Riok.Mapperly.Abstractions;
 
 namespace Application.Mappers;
@@ -21,7 +22,7 @@ public static partial class CatalogoMapper
     }
 
     public static JogoResumoResponseDto ToResumoResponse(
-        Jogo jogo,
+        JogoCatalogoRespostDto jogo,
         double pontuacaoCuradoria = 0.0,
         double mediaFogueiras = 0.0,
         OfertaJogoSteamDto? oferta = null)
@@ -52,7 +53,7 @@ public static partial class CatalogoMapper
         return ToResumoResponse(resultado.Jogo, resultado.PontuacaoCuradoria, resultado.MediaFogueiras, resultado.Oferta);
     }
 
-    public static JogoDetalhesResponseDto ToDetalhesResponse(Jogo jogo, JogoLogger? logger, OfertaJogoSteamDto? oferta = null)
+    public static JogoDetalhesResponseDto ToDetalhesResponse(JogoCatalogoRespostDto jogo, JogoLoggerRespostDto? logger, OfertaJogoSteamDto? oferta = null)
     {
         var metricas = new JogoMetricasLoggerResponseDto
         {

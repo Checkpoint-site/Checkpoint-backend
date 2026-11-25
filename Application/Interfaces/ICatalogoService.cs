@@ -1,3 +1,4 @@
+using Application.Dtos.Catalogo.Requests;
 using Application.Dtos.Catalogo.Responses;
 
 namespace Application.Interfaces;
@@ -5,26 +6,21 @@ namespace Application.Interfaces;
 public interface ICatalogoService
 {
     Task<BuscaCatalogoResponseDto> BuscarAsync(
-        string? tipo,
-        string termo,
-        string? algoritmo,
-        int? idUsuario = null,
+        BuscarCatalogoRequestDto request,
         CancellationToken cancellationToken = default);
 
     Task<DestaquesCatalogoResponseDto> ObterDestaquesAsync(
-        string? algoritmo = null,
-        int? idUsuario = null,
+        ObterDestaquesCatalogoRequestDto request,
         CancellationToken cancellationToken = default);
 
     Task<JogoDetalhesResponseDto> ObterDetalhesPorSteamAppIdAsync(
-        int steamAppId,
+        ObterDetalhesJogoRequestDto request,
         CancellationToken cancellationToken = default);
 
     Task<TendenciasGenerosResponseDto> ObterTendenciasGenerosAsync(
-        int? idUsuario = null,
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<UsuarioPopularResponseDto>> ObterUsuariosPopularesAsync(
-        int limite = 10,
+        ObterUsuariosPopularesRequestDto request,
         CancellationToken cancellationToken = default);
 }

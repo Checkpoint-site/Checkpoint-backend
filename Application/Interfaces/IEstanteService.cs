@@ -11,14 +11,12 @@ public interface IEstanteService
 
     Task<EstantesUsuarioResponseDto> AdicionarJogoAsync(
         int idUsuario,
-        string tipoEstante,
-        int steamAppId,
+        AlterarJogoEstanteRequestDto request,
         CancellationToken cancellationToken = default);
 
     Task<EstantesUsuarioResponseDto> RemoverJogoAsync(
         int idUsuario,
-        string tipoEstante,
-        int steamAppId,
+        AlterarJogoEstanteRequestDto request,
         CancellationToken cancellationToken = default);
 
     Task<EstanteFavoritosResponseDto> AtualizarConfiguracaoFavoritosAsync(

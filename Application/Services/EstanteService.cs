@@ -4,12 +4,15 @@ using Application.Dtos.Estantes.Responses;
 using Application.Interfaces;
 using Application.Mappers;
 using Application.Strategies.Algoritmos;
-using Application.Strategies.Estantes;
 using Domain.Dtos.Catalogo;
+using Domain.Dtos.Catalogo.Respost;
+using Domain.Dtos.Estantes.Commands;
+using Domain.Dtos.Estantes.Respost;
+using Domain.Dtos.Loggers.Respost;
+using Domain.Enum;
 using Domain.Exceptions.Common;
 using Domain.Interfaces.Repository;
 using Domain.Interfaces.Services;
-using Domain.Model;
 
 namespace Application.Services;
 
@@ -19,7 +22,7 @@ public class EstanteService(
     IEngajamentoLoggerRepository loggerRepository,
     ISteamStoreService steamStoreService,
     ICatalogoCacheService cacheService,
-    IEnumerable<RegraEstanteCatalogo> regrasEstante
+    IRegraEstanteFactory regraEstanteFactory
 ) : IEstanteService
 {
     private static readonly TimeSpan TtlOfertaTemporaria = TimeSpan.FromMinutes(30);
@@ -54,26 +57,34 @@ public class EstanteService(
 
     public async Task<EstantesUsuarioResponseDto> AdicionarJogoAsync(
         int idUsuario,
-        string tipoEstante,
-        int steamAppId,
+        AlterarJogoEstanteRequestDto request,
         CancellationToken cancellationToken = default)
     {
-        if (steamAppId <= 0)
+        if (request.SteamAppId <= 0)
         {
             throw new ValidationException("O identificador SteamAppId deve ser um número positivo.");
         }
 
-        var regra = ResolverRegraEstante(tipoEstante);
-        var jogo = await ObterOuSincronizarJogoAsync(steamAppId, cancellationToken);
+        var regra = regraEstanteFactory.Criar(request.TipoEstante);
+        var jogo = await ObterOuSincronizarJogoAsync(request.SteamAppId, cancellationToken);
 
-        if (regra.TipoEstante == "favoritos")
+        if (regra.TipoEstante == TipoEstante.Favoritos)
         {
             var favoritos = await estanteRepository.ObterFavoritosPorUsuarioAsync(idUsuario, cancellationToken)
                 ?? CriarFavoritosPadrao(idUsuario);
 
             regra.ValidarAdicaoJogo(favoritos, jogo);
-            favoritos.Jogos = [.. favoritos.Jogos, jogo.IdJogo];
-            await estanteRepository.SalvarFavoritosAsync(favoritos, cancellationToken);
+
+            var comando = new SalvarFavoritosCommandDto
+            {
+                IdUsuario = idUsuario,
+                Jogos = [.. favoritos.Jogos, jogo.IdJogo],
+                JogoDestaquePerfilId = favoritos.JogoDestaquePerfilId,
+                ExibirNoTopoPerfil = favoritos.ExibirNoTopoPerfil,
+                ObservacaoDestaque = favoritos.ObservacaoDestaque
+            };
+
+            await estanteRepository.SalvarFavoritosAsync(comando, cancellationToken);
         }
         else
         {
@@ -81,31 +92,40 @@ public class EstanteService(
                 ?? CriarPretendeJogarPadrao(idUsuario);
 
             regra.ValidarAdicaoJogo(pretendeJogar, jogo);
-            pretendeJogar.Jogos = [.. pretendeJogar.Jogos, jogo.IdJogo];
-            await estanteRepository.SalvarPretendeJogarAsync(pretendeJogar, cancellationToken);
+
+            var comando = new SalvarPretendeJogarCommandDto
+            {
+                IdUsuario = idUsuario,
+                Jogos = [.. pretendeJogar.Jogos, jogo.IdJogo],
+                NivelPrioridade = pretendeJogar.NivelPrioridade,
+                NotificarEmPromocao = pretendeJogar.NotificarEmPromocao,
+                MetaAnoConclusao = pretendeJogar.MetaAnoConclusao
+            };
+
+            await estanteRepository.SalvarPretendeJogarAsync(comando, cancellationToken);
         }
 
-        await PropagarImpactoNosLoggersAsync(idUsuario, jogo, regra, adicionando: true, cancellationToken);
+        var impactoLoggers = regra.CriarComandoImpactoLoggers(idUsuario, jogo, adicionando: true);
+        await loggerRepository.AplicarImpactoEstanteAsync(impactoLoggers, cancellationToken);
 
         return await ObterEstantesUsuarioAsync(idUsuario, cancellationToken);
     }
 
     public async Task<EstantesUsuarioResponseDto> RemoverJogoAsync(
         int idUsuario,
-        string tipoEstante,
-        int steamAppId,
+        AlterarJogoEstanteRequestDto request,
         CancellationToken cancellationToken = default)
     {
-        if (steamAppId <= 0)
+        if (request.SteamAppId <= 0)
         {
             throw new ValidationException("O identificador SteamAppId deve ser um número positivo.");
         }
 
-        var regra = ResolverRegraEstante(tipoEstante);
-        var jogo = await catalogoRepository.ObterPorSteamAppIdAsync(steamAppId, cancellationToken)
-            ?? throw new NotFoundException($"Jogo com SteamAppId {steamAppId} não encontrado no catálogo.");
+        var regra = regraEstanteFactory.Criar(request.TipoEstante);
+        var jogo = await catalogoRepository.ObterPorSteamAppIdAsync(request.SteamAppId, cancellationToken)
+            ?? throw new NotFoundException($"Jogo com SteamAppId {request.SteamAppId} não encontrado no catálogo.");
 
-        if (regra.TipoEstante == "favoritos")
+        if (regra.TipoEstante == TipoEstante.Favoritos)
         {
             var favoritos = await estanteRepository.ObterFavoritosPorUsuarioAsync(idUsuario, cancellationToken);
             if (favoritos is null || !favoritos.Jogos.Contains(jogo.IdJogo))
@@ -113,13 +133,16 @@ public class EstanteService(
                 throw new NotFoundException("Este jogo não está na sua estante de Favoritos.");
             }
 
-            favoritos.Jogos = favoritos.Jogos.Where(id => id != jogo.IdJogo).ToList();
-            if (favoritos.JogoDestaquePerfilId == jogo.IdJogo)
+            var comando = new SalvarFavoritosCommandDto
             {
-                favoritos.JogoDestaquePerfilId = null;
-            }
+                IdUsuario = idUsuario,
+                Jogos = favoritos.Jogos.Where(id => id != jogo.IdJogo).ToList(),
+                JogoDestaquePerfilId = favoritos.JogoDestaquePerfilId == jogo.IdJogo ? null : favoritos.JogoDestaquePerfilId,
+                ExibirNoTopoPerfil = favoritos.ExibirNoTopoPerfil,
+                ObservacaoDestaque = favoritos.ObservacaoDestaque
+            };
 
-            await estanteRepository.SalvarFavoritosAsync(favoritos, cancellationToken);
+            await estanteRepository.SalvarFavoritosAsync(comando, cancellationToken);
         }
         else
         {
@@ -129,11 +152,20 @@ public class EstanteService(
                 throw new NotFoundException("Este jogo não está na sua estante 'Pretende Jogar'.");
             }
 
-            pretendeJogar.Jogos = pretendeJogar.Jogos.Where(id => id != jogo.IdJogo).ToList();
-            await estanteRepository.SalvarPretendeJogarAsync(pretendeJogar, cancellationToken);
+            var comando = new SalvarPretendeJogarCommandDto
+            {
+                IdUsuario = idUsuario,
+                Jogos = pretendeJogar.Jogos.Where(id => id != jogo.IdJogo).ToList(),
+                NivelPrioridade = pretendeJogar.NivelPrioridade,
+                NotificarEmPromocao = pretendeJogar.NotificarEmPromocao,
+                MetaAnoConclusao = pretendeJogar.MetaAnoConclusao
+            };
+
+            await estanteRepository.SalvarPretendeJogarAsync(comando, cancellationToken);
         }
 
-        await PropagarImpactoNosLoggersAsync(idUsuario, jogo, regra, adicionando: false, cancellationToken);
+        var impactoLoggers = regra.CriarComandoImpactoLoggers(idUsuario, jogo, adicionando: false);
+        await loggerRepository.AplicarImpactoEstanteAsync(impactoLoggers, cancellationToken);
 
         return await ObterEstantesUsuarioAsync(idUsuario, cancellationToken);
     }
@@ -165,17 +197,22 @@ public class EstanteService(
             idJogoDestaque = jogoDestaque.IdJogo;
         }
 
-        favoritos.JogoDestaquePerfilId = idJogoDestaque;
-        favoritos.ExibirNoTopoPerfil = request.ExibirNoTopoPerfil;
-        favoritos.ObservacaoDestaque = request.ObservacaoDestaque?.Trim();
+        var comando = new SalvarFavoritosCommandDto
+        {
+            IdUsuario = idUsuario,
+            Jogos = favoritos.Jogos,
+            JogoDestaquePerfilId = idJogoDestaque,
+            ExibirNoTopoPerfil = request.ExibirNoTopoPerfil,
+            ObservacaoDestaque = request.ObservacaoDestaque?.Trim()
+        };
 
-        await estanteRepository.SalvarFavoritosAsync(favoritos, cancellationToken);
+        var favoritosAtualizado = await estanteRepository.SalvarFavoritosAsync(comando, cancellationToken);
 
-        var jogos = await catalogoRepository.ObterPorIdsAsync(favoritos.Jogos, cancellationToken);
-        var loggers = await loggerRepository.ObterJogoLoggersPorJogosAsync(favoritos.Jogos, cancellationToken);
+        var jogos = await catalogoRepository.ObterPorIdsAsync(favoritosAtualizado.Jogos, cancellationToken);
+        var loggers = await loggerRepository.ObterJogoLoggersPorJogosAsync(favoritosAtualizado.Jogos, cancellationToken);
         var ofertas = await CarregarOfertasDoCacheAsync(jogos, cancellationToken);
 
-        return MapearFavoritos(favoritos, jogos.ToDictionary(j => j.IdJogo), loggers, ofertas);
+        return MapearFavoritos(favoritosAtualizado, jogos.ToDictionary(j => j.IdJogo), loggers, ofertas);
     }
 
     public async Task<EstantePretendeJogarResponseDto> AtualizarConfiguracaoPretendeJogarAsync(
@@ -197,17 +234,22 @@ public class EstanteService(
         var pretendeJogar = await estanteRepository.ObterPretendeJogarPorUsuarioAsync(idUsuario, cancellationToken)
             ?? CriarPretendeJogarPadrao(idUsuario);
 
-        pretendeJogar.NivelPrioridade = request.NivelPrioridade;
-        pretendeJogar.NotificarEmPromocao = request.NotificarEmPromocao;
-        pretendeJogar.MetaAnoConclusao = request.MetaAnoConclusao;
+        var comando = new SalvarPretendeJogarCommandDto
+        {
+            IdUsuario = idUsuario,
+            Jogos = pretendeJogar.Jogos,
+            NivelPrioridade = request.NivelPrioridade,
+            NotificarEmPromocao = request.NotificarEmPromocao,
+            MetaAnoConclusao = request.MetaAnoConclusao
+        };
 
-        await estanteRepository.SalvarPretendeJogarAsync(pretendeJogar, cancellationToken);
+        var pretendeAtualizado = await estanteRepository.SalvarPretendeJogarAsync(comando, cancellationToken);
 
-        var jogos = await catalogoRepository.ObterPorIdsAsync(pretendeJogar.Jogos, cancellationToken);
-        var loggers = await loggerRepository.ObterJogoLoggersPorJogosAsync(pretendeJogar.Jogos, cancellationToken);
+        var jogos = await catalogoRepository.ObterPorIdsAsync(pretendeAtualizado.Jogos, cancellationToken);
+        var loggers = await loggerRepository.ObterJogoLoggersPorJogosAsync(pretendeAtualizado.Jogos, cancellationToken);
         var ofertas = await CarregarOfertasDoCacheAsync(jogos, cancellationToken);
 
-        return MapearPretendeJogar(pretendeJogar, jogos.ToDictionary(j => j.IdJogo), loggers, ofertas);
+        return MapearPretendeJogar(pretendeAtualizado, jogos.ToDictionary(j => j.IdJogo), loggers, ofertas);
     }
 
     public async Task<PromocoesPretendeJogarResponseDto> ObterPromocoesPretendeJogarAsync(
@@ -274,26 +316,7 @@ public class EstanteService(
         };
     }
 
-    private RegraEstanteCatalogo ResolverRegraEstante(string tipoEstante)
-    {
-        if (string.IsNullOrWhiteSpace(tipoEstante))
-        {
-            throw new ValidationException("O tipo de estante é obrigatório.");
-        }
-
-        var normalizado = tipoEstante.Trim().ToLowerInvariant();
-        var regra = regrasEstante.FirstOrDefault(r => r.TipoEstante.Equals(normalizado, StringComparison.OrdinalIgnoreCase));
-
-        if (regra is null)
-        {
-            var disponiveis = string.Join(", ", regrasEstante.Select(r => r.TipoEstante));
-            throw new ValidationException($"Tipo de estante '{tipoEstante}' inválido. Valores aceitos: {disponiveis}.");
-        }
-
-        return regra;
-    }
-
-    private async Task<Jogo> ObterOuSincronizarJogoAsync(int steamAppId, CancellationToken cancellationToken)
+    private async Task<JogoCatalogoRespostDto> ObterOuSincronizarJogoAsync(int steamAppId, CancellationToken cancellationToken)
     {
         var existente = await catalogoRepository.ObterPorSteamAppIdAsync(steamAppId, cancellationToken);
         if (existente is not null)
@@ -311,7 +334,7 @@ public class EstanteService(
     }
 
     private async Task<IReadOnlyDictionary<int, OfertaJogoSteamDto>> CarregarOfertasDoCacheAsync(
-        IEnumerable<Jogo> jogos,
+        IEnumerable<JogoCatalogoRespostDto> jogos,
         CancellationToken cancellationToken)
     {
         var ofertas = new Dictionary<int, OfertaJogoSteamDto>();
@@ -331,31 +354,7 @@ public class EstanteService(
         return ofertas;
     }
 
-    private async Task PropagarImpactoNosLoggersAsync(
-        int idUsuario,
-        Jogo jogo,
-        RegraEstanteCatalogo regra,
-        bool adicionando,
-        CancellationToken cancellationToken)
-    {
-        var jogoLogger = await loggerRepository.ObterOuCriarJogoLoggerAsync(jogo.IdJogo, cancellationToken);
-        var usuarioLogger = await loggerRepository.ObterOuCriarUsuarioLoggerAsync(idUsuario, cancellationToken);
-
-        var generoLoggers = new List<GeneroLogger>();
-        foreach (var genero in jogo.Generos.Distinct())
-        {
-            var globalLogger = await loggerRepository.ObterOuCriarGeneroLoggerAsync(genero, null, cancellationToken);
-            var individualLogger = await loggerRepository.ObterOuCriarGeneroLoggerAsync(genero, idUsuario, cancellationToken);
-
-            generoLoggers.Add(globalLogger);
-            generoLoggers.Add(individualLogger);
-        }
-
-        regra.AtualizarLoggers(jogoLogger, generoLoggers, usuarioLogger, adicionando);
-        await loggerRepository.SalvarAlteracoesAsync(cancellationToken);
-    }
-
-    private static Favoritos CriarFavoritosPadrao(int idUsuario) => new()
+    private static FavoritosRespostDto CriarFavoritosPadrao(int idUsuario) => new()
     {
         IdUsuario = idUsuario,
         Jogos = [],
@@ -363,7 +362,7 @@ public class EstanteService(
         DataAtualizacao = DateTime.UtcNow
     };
 
-    private static PretendeJogar CriarPretendeJogarPadrao(int idUsuario) => new()
+    private static PretendeJogarRespostDto CriarPretendeJogarPadrao(int idUsuario) => new()
     {
         IdUsuario = idUsuario,
         Jogos = [],
@@ -373,9 +372,9 @@ public class EstanteService(
     };
 
     private static EstanteFavoritosResponseDto MapearFavoritos(
-        Favoritos favoritos,
-        IReadOnlyDictionary<int, Jogo> mapaJogos,
-        IReadOnlyDictionary<int, JogoLogger> loggers,
+        FavoritosRespostDto favoritos,
+        IReadOnlyDictionary<int, JogoCatalogoRespostDto> mapaJogos,
+        IReadOnlyDictionary<int, JogoLoggerRespostDto> loggers,
         IReadOnlyDictionary<int, OfertaJogoSteamDto> ofertas)
     {
         var lista = MapearJogosDaEstante(favoritos.Jogos, mapaJogos, loggers, ofertas);
@@ -393,9 +392,9 @@ public class EstanteService(
     }
 
     private static EstantePretendeJogarResponseDto MapearPretendeJogar(
-        PretendeJogar pretendeJogar,
-        IReadOnlyDictionary<int, Jogo> mapaJogos,
-        IReadOnlyDictionary<int, JogoLogger> loggers,
+        PretendeJogarRespostDto pretendeJogar,
+        IReadOnlyDictionary<int, JogoCatalogoRespostDto> mapaJogos,
+        IReadOnlyDictionary<int, JogoLoggerRespostDto> loggers,
         IReadOnlyDictionary<int, OfertaJogoSteamDto> ofertas)
     {
         var lista = MapearJogosDaEstante(pretendeJogar.Jogos, mapaJogos, loggers, ofertas);
@@ -414,8 +413,8 @@ public class EstanteService(
 
     private static IReadOnlyList<JogoResumoResponseDto> MapearJogosDaEstante(
         IEnumerable<int> idsJogos,
-        IReadOnlyDictionary<int, Jogo> mapaJogos,
-        IReadOnlyDictionary<int, JogoLogger> loggers,
+        IReadOnlyDictionary<int, JogoCatalogoRespostDto> mapaJogos,
+        IReadOnlyDictionary<int, JogoLoggerRespostDto> loggers,
         IReadOnlyDictionary<int, OfertaJogoSteamDto> ofertas)
     {
         var resultado = new List<JogoResumoResponseDto>();

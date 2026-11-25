@@ -1,14 +1,15 @@
+using Application.Dtos.Catalogo.Requests;
 using Application.Dtos.Catalogo.Responses;
 using Application.Interfaces;
 using Application.Mappers;
 using Application.Strategies.Algoritmos;
-using Application.Strategies.Busca;
 using Domain.Dtos.Catalogo;
+using Domain.Dtos.Catalogo.Commands;
+using Domain.Dtos.Catalogo.Respost;
 using Domain.Enum;
 using Domain.Exceptions.Common;
 using Domain.Interfaces.Repository;
 using Domain.Interfaces.Services;
-using Domain.Model;
 
 namespace Application.Services;
 
@@ -17,13 +18,13 @@ public class CatalogoService(
     IEngajamentoLoggerRepository loggerRepository,
     ISteamStoreService steamStoreService,
     ICatalogoCacheService cacheService,
-    IEnumerable<EstrategiaBuscaCatalogo> estrategiasBusca,
-    IEnumerable<AlgoritmoCuradoriaCatalogo> algoritmosCuradoria
+    IBuscaCatalogoStrategyFactory buscaStrategyFactory,
+    IAlgoritmoCuradoriaFactory algoritmoCuradoriaFactory
 ) : ICatalogoService
 {
     private const int MinimoCandidatosLocais = 5;
     private const int MaximoHidratacoesSteamPorBusca = 5;
-    private static readonly TimeSpan TtlBuscaAnonima = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan TtlBusca = TimeSpan.FromMinutes(30);
     private static readonly TimeSpan TtlDestaques = TimeSpan.FromMinutes(30);
     private static readonly TimeSpan TtlOfertaTemporaria = TimeSpan.FromMinutes(30);
     private static readonly TimeSpan ValidadeMetadadosFixosSql = TimeSpan.FromDays(30);
@@ -31,77 +32,72 @@ public class CatalogoService(
     public static string ObterChaveOferta(int steamAppId) => $"catalogo:oferta:{steamAppId}";
 
     public async Task<BuscaCatalogoResponseDto> BuscarAsync(
-        string? tipo,
-        string termo,
-        string? algoritmo,
-        int? idUsuario = null,
+        BuscarCatalogoRequestDto request,
         CancellationToken cancellationToken = default)
     {
-        var estrategia = ResolverEstrategiaBusca(tipo);
-        var algoritmoEscolhido = ResolverAlgoritmoCuradoria(algoritmo);
+        var estrategia = buscaStrategyFactory.Criar(request.Tipo);
+        var algoritmoEscolhido = algoritmoCuradoriaFactory.Criar(request.Algoritmo);
 
-        estrategia.ValidarTermo(termo);
+        estrategia.ValidarBusca(request.JogoBuscado);
 
-        var termoLimpo = termo.Trim();
-        var chaveCache = $"catalogo:busca:{estrategia.TipoBusca}:{termoLimpo.ToLowerInvariant()}:{algoritmoEscolhido.NomeAlgoritmo}";
+        var jogoBuscadoLimpo = request.JogoBuscado.Trim();
+        var chaveCache = $"catalogo:busca:{estrategia.ChaveExibicao}:{jogoBuscadoLimpo.ToLowerInvariant()}:{algoritmoEscolhido.ChaveExibicao}";
 
-        if (idUsuario is null)
+        var emCache = await cacheService.ObterAsync<BuscaCatalogoResponseDto>(chaveCache, cancellationToken);
+        if (emCache is not null)
         {
-            var emCache = await cacheService.ObterAsync<BuscaCatalogoResponseDto>(chaveCache, cancellationToken);
-            if (emCache is not null)
-            {
-                return emCache;
-            }
+            return emCache;
         }
 
-        var candidatosLocais = await catalogoRepository.BuscarCandidatosLocaisAsync(
-            estrategia.TipoBusca,
-            termoLimpo,
-            cancellationToken);
+        var comandoBusca = new BuscarCandidatosLocaisCommandDto
+        {
+            TipoBusca = estrategia.TipoBusca,
+            JogoBuscado = jogoBuscadoLimpo
+        };
+
+        var candidatosLocais = await catalogoRepository.BuscarCandidatosLocaisAsync(comandoBusca, cancellationToken);
 
         var todosCandidatos = candidatosLocais
             .GroupBy(j => j.SteamAppId)
             .Select(g => g.First())
             .ToDictionary(j => j.SteamAppId);
 
-        var correspondenciasLocais = estrategia.FiltrarCandidatos(todosCandidatos.Values, termoLimpo);
+        var correspondenciasLocais = estrategia.FiltrarCandidatos(todosCandidatos.Values, jogoBuscadoLimpo);
 
         if (correspondenciasLocais.Count < MinimoCandidatosLocais)
         {
-            await HidratarCandidatosDaSteamAsync(termoLimpo, todosCandidatos, temFallbackLocal: correspondenciasLocais.Count > 0, cancellationToken);
+            await HidratarCandidatosDaSteamAsync(jogoBuscadoLimpo, todosCandidatos, temFallbackLocal: correspondenciasLocais.Count > 0, cancellationToken);
         }
 
-        var filtrados = estrategia.FiltrarCandidatos(todosCandidatos.Values, termoLimpo);
+        var filtrados = estrategia.FiltrarCandidatos(todosCandidatos.Values, jogoBuscadoLimpo);
         var jogosFiltrados = filtrados.Select(f => f.Jogo).ToList();
-        var precisaOfertasAoVivo = algoritmoEscolhido.NomeAlgoritmo == "custo-beneficio";
+        var precisaOfertasAoVivo = algoritmoEscolhido.TipoAlgoritmo == TipoAlgoritmoCuradoria.CustoBeneficio;
 
-        var contexto = await MontarContextoCuradoriaAsync(jogosFiltrados, precisaOfertasAoVivo, idUsuario, cancellationToken);
+        var contexto = await MontarContextoCuradoriaAsync(jogosFiltrados, precisaOfertasAoVivo, cancellationToken);
         var ordenados = algoritmoEscolhido.Ordenar(filtrados, contexto);
 
         var resposta = new BuscaCatalogoResponseDto
         {
-            TipoBusca = estrategia.TipoBusca,
-            Termo = termoLimpo,
-            AlgoritmoAplicado = algoritmoEscolhido.NomeAlgoritmo,
-            PersonalizadoParaUsuario = idUsuario is not null,
+            TipoBusca = estrategia.ChaveExibicao,
+            JogoBuscado = jogoBuscadoLimpo,
+            AlgoritmoAplicado = algoritmoEscolhido.ChaveExibicao,
             TotalResultados = ordenados.Count,
             Itens = ordenados.Select(CatalogoMapper.ToResumoResponse).ToList()
         };
 
-        if (idUsuario is null && resposta.TotalResultados > 0)
+        if (resposta.TotalResultados > 0)
         {
-            await cacheService.SalvarAsync(chaveCache, resposta, TtlBuscaAnonima, cancellationToken);
+            await cacheService.SalvarAsync(chaveCache, resposta, TtlBusca, cancellationToken);
         }
 
         return resposta;
     }
 
     public async Task<DestaquesCatalogoResponseDto> ObterDestaquesAsync(
-        string? algoritmo = null,
-        int? idUsuario = null,
+        ObterDestaquesCatalogoRequestDto request,
         CancellationToken cancellationToken = default)
     {
-        var algoritmoEscolhido = ResolverAlgoritmoCuradoria(algoritmo);
+        var algoritmoEscolhido = algoritmoCuradoriaFactory.Criar(request.Algoritmo);
         const string chaveDestaquesBrutos = "catalogo:destaques:steam";
 
         var destaquesSteam = await cacheService.ObterAsync<DestaquesSteamDto>(chaveDestaquesBrutos, cancellationToken);
@@ -164,7 +160,7 @@ public class CatalogoService(
                     };
                 });
 
-        var contextoBase = await MontarContextoCuradoriaAsync(jogosLocais, hidratarOfertasExpiradas: false, idUsuario, cancellationToken);
+        var contextoBase = await MontarContextoCuradoriaAsync(jogosLocais, hidratarOfertasExpiradas: false, cancellationToken);
         var ofertasMescladas = new Dictionary<int, OfertaJogoSteamDto>(ofertasVitrine);
         foreach (var kv in contextoBase.OfertasPorSteamAppId)
         {
@@ -174,15 +170,13 @@ public class CatalogoService(
         var contexto = new ContextoCuradoria
         {
             JogoLoggersPorJogo = contextoBase.JogoLoggersPorJogo,
-            GeneroLoggersGlobais = contextoBase.GeneroLoggersGlobais,
-            GeneroLoggersUsuario = contextoBase.GeneroLoggersUsuario,
-            OfertasPorSteamAppId = ofertasMescladas,
-            UsuarioAutenticado = contextoBase.UsuarioAutenticado
+            GeneroLoggers = contextoBase.GeneroLoggers,
+            OfertasPorSteamAppId = ofertasMescladas
         };
 
         return new DestaquesCatalogoResponseDto
         {
-            AlgoritmoAplicado = algoritmoEscolhido.NomeAlgoritmo,
+            AlgoritmoAplicado = algoritmoEscolhido.ChaveExibicao,
             MaisVendidos = OrdenarVitrine(destaquesSteam.MaisVendidos, mapaPorSteamId, algoritmoEscolhido, contexto),
             Lancamentos = OrdenarVitrine(destaquesSteam.Lancamentos, mapaPorSteamId, algoritmoEscolhido, contexto),
             OfertasEspeciais = OrdenarVitrine(destaquesSteam.OfertasEspeciais, mapaPorSteamId, algoritmoEscolhido, contexto),
@@ -191,14 +185,15 @@ public class CatalogoService(
     }
 
     public async Task<JogoDetalhesResponseDto> ObterDetalhesPorSteamAppIdAsync(
-        int steamAppId,
+        ObterDetalhesJogoRequestDto request,
         CancellationToken cancellationToken = default)
     {
-        if (steamAppId <= 0)
+        if (request.SteamAppId <= 0)
         {
             throw new ValidationException("O identificador SteamAppId deve ser um número positivo.");
         }
 
+        var steamAppId = request.SteamAppId;
         var jogoLocal = await catalogoRepository.ObterPorSteamAppIdAsync(steamAppId, cancellationToken);
         var ofertaTemporaria = await cacheService.ObterAsync<OfertaJogoSteamDto>(ObterChaveOferta(steamAppId), cancellationToken);
 
@@ -245,62 +240,47 @@ public class CatalogoService(
     }
 
     public async Task<TendenciasGenerosResponseDto> ObterTendenciasGenerosAsync(
-        int? idUsuario = null,
         CancellationToken cancellationToken = default)
     {
-        var globais = await loggerRepository.ObterGeneroLoggersGlobaisAsync(cancellationToken);
-        var mapaGlobal = globais.ToDictionary(g => g.Genero);
-
-        Dictionary<Generos, GeneroLogger>? mapaUsuario = null;
-        if (idUsuario is not null)
-        {
-            var doUsuario = await loggerRepository.ObterGeneroLoggersPorUsuarioAsync(idUsuario.Value, cancellationToken);
-            mapaUsuario = doUsuario.ToDictionary(g => g.Genero);
-        }
+        var loggers = await loggerRepository.ObterGeneroLoggersAsync(cancellationToken);
+        var mapaGeneros = loggers.ToDictionary(g => g.Genero);
 
         var itens = Enum.GetValues<Generos>()
             .Select(genero =>
             {
-                mapaGlobal.TryGetValue(genero, out var global);
-                GeneroLogger? usuarioLogger = null;
-                mapaUsuario?.TryGetValue(genero, out usuarioLogger);
+                mapaGeneros.TryGetValue(genero, out var logger);
 
                 return new TendenciaGeneroItemResponseDto
                 {
                     Genero = genero.ToString(),
-                    PontuacaoGlobal = Math.Round(ContextoCuradoria.CalcularForcaGeneroLogger(global), 2),
-                    PontuacaoUsuario = idUsuario is not null
-                        ? Math.Round(ContextoCuradoria.CalcularForcaGeneroLogger(usuarioLogger), 2)
-                        : null,
-                    PresencaFavoritosGlobal = global?.PresencaFavoritos ?? 0UL,
-                    PresencaPretendeJogarGlobal = global?.PresencaPretendeJogar ?? 0UL,
-                    PresencaPostGlobal = global?.PresencaPost ?? 0UL,
-                    PresencaComentarioGlobal = global?.PresencaComentario ?? 0UL,
-                    QuantidadeCurtidaGlobal = global?.QuantidadeCurtida ?? 0UL
+                    Pontuacao = Math.Round(ContextoCuradoria.CalcularForcaGeneroLogger(logger), 2),
+                    PresencaFavoritos = logger?.PresencaFavoritos ?? 0UL,
+                    PresencaPretendeJogar = logger?.PresencaPretendeJogar ?? 0UL,
+                    PresencaPost = logger?.PresencaPost ?? 0UL,
+                    PresencaComentario = logger?.PresencaComentario ?? 0UL,
+                    QuantidadeCurtida = logger?.QuantidadeCurtida ?? 0UL
                 };
             })
-            .OrderByDescending(i => i.PontuacaoUsuario ?? i.PontuacaoGlobal)
-            .ThenByDescending(i => i.PontuacaoGlobal)
+            .OrderByDescending(i => i.Pontuacao)
             .ThenBy(i => i.Genero)
             .ToList();
 
         return new TendenciasGenerosResponseDto
         {
-            PersonalizadoParaUsuario = idUsuario is not null,
             Generos = itens
         };
     }
 
     public async Task<IReadOnlyList<UsuarioPopularResponseDto>> ObterUsuariosPopularesAsync(
-        int limite = 10,
+        ObterUsuariosPopularesRequestDto request,
         CancellationToken cancellationToken = default)
     {
-        if (limite <= 0 || limite > 50)
+        if (request.Limite <= 0 || request.Limite > 50)
         {
             throw new ValidationException("O limite deve estar entre 1 e 50 usuários.");
         }
 
-        var populares = await loggerRepository.ObterUsuariosPopularesAsync(limite, cancellationToken);
+        var populares = await loggerRepository.ObterUsuariosPopularesAsync(request.Limite, cancellationToken);
 
         return populares
             .Select(u =>
@@ -337,43 +317,15 @@ public class CatalogoService(
         ConsultadoEm = DateTime.UtcNow
     };
 
-    private EstrategiaBuscaCatalogo ResolverEstrategiaBusca(string? tipo)
-    {
-        var chave = string.IsNullOrWhiteSpace(tipo) ? "nome" : tipo.Trim().ToLowerInvariant();
-        var estrategia = estrategiasBusca.FirstOrDefault(e => e.TipoBusca.Equals(chave, StringComparison.OrdinalIgnoreCase));
-
-        if (estrategia is null)
-        {
-            var disponiveis = string.Join(", ", estrategiasBusca.Select(e => e.TipoBusca));
-            throw new ValidationException($"Tipo de busca '{tipo}' inválido. Valores aceitos: {disponiveis}.");
-        }
-
-        return estrategia;
-    }
-
-    private AlgoritmoCuradoriaCatalogo ResolverAlgoritmoCuradoria(string? algoritmo)
-    {
-        var chave = string.IsNullOrWhiteSpace(algoritmo) ? "popularidade" : algoritmo.Trim().ToLowerInvariant();
-        var escolhido = algoritmosCuradoria.FirstOrDefault(a => a.NomeAlgoritmo.Equals(chave, StringComparison.OrdinalIgnoreCase));
-
-        if (escolhido is null)
-        {
-            var disponiveis = string.Join(", ", algoritmosCuradoria.Select(a => a.NomeAlgoritmo));
-            throw new ValidationException($"Algoritmo '{algoritmo}' inválido. Valores aceitos: {disponiveis}.");
-        }
-
-        return escolhido;
-    }
-
     private async Task HidratarCandidatosDaSteamAsync(
-        string termo,
-        Dictionary<int, Jogo> todosCandidatos,
+        string jogoBuscado,
+        Dictionary<int, JogoCatalogoRespostDto> todosCandidatos,
         bool temFallbackLocal,
         CancellationToken cancellationToken)
     {
         try
         {
-            var itensSteam = await steamStoreService.BuscarPorTermoAsync(termo, cancellationToken);
+            var itensSteam = await steamStoreService.BuscarJogosAsync(jogoBuscado, cancellationToken);
             var ineditos = itensSteam
                 .Where(i => !todosCandidatos.ContainsKey(i.SteamAppId))
                 .Take(MaximoHidratacoesSteamPorBusca)
@@ -399,21 +351,13 @@ public class CatalogoService(
     }
 
     private async Task<ContextoCuradoria> MontarContextoCuradoriaAsync(
-        IReadOnlyList<Jogo> jogos,
+        IReadOnlyList<JogoCatalogoRespostDto> jogos,
         bool hidratarOfertasExpiradas,
-        int? idUsuario,
         CancellationToken cancellationToken)
     {
         var idsJogos = jogos.Select(j => j.IdJogo).Distinct().ToList();
         var jogoLoggers = await loggerRepository.ObterJogoLoggersPorJogosAsync(idsJogos, cancellationToken);
-        var globais = await loggerRepository.ObterGeneroLoggersGlobaisAsync(cancellationToken);
-
-        IReadOnlyDictionary<Generos, GeneroLogger> doUsuario = new Dictionary<Generos, GeneroLogger>();
-        if (idUsuario is not null)
-        {
-            var listaUsuario = await loggerRepository.ObterGeneroLoggersPorUsuarioAsync(idUsuario.Value, cancellationToken);
-            doUsuario = listaUsuario.ToDictionary(g => g.Genero);
-        }
+        var generoLoggers = await loggerRepository.ObterGeneroLoggersAsync(cancellationToken);
 
         var ofertas = new Dictionary<int, OfertaJogoSteamDto>();
         var atualizacoesRealizadas = 0;
@@ -450,16 +394,14 @@ public class CatalogoService(
         return new ContextoCuradoria
         {
             JogoLoggersPorJogo = jogoLoggers,
-            GeneroLoggersGlobais = globais.ToDictionary(g => g.Genero),
-            GeneroLoggersUsuario = doUsuario,
-            OfertasPorSteamAppId = ofertas,
-            UsuarioAutenticado = idUsuario is not null
+            GeneroLoggers = generoLoggers.ToDictionary(g => g.Genero),
+            OfertasPorSteamAppId = ofertas
         };
     }
 
     private static IReadOnlyList<ItemVitrineResponseDto> OrdenarVitrine(
         IReadOnlyList<ItemDestaqueSteamDto> itens,
-        IReadOnlyDictionary<int, Jogo> mapaJogosLocais,
+        IReadOnlyDictionary<int, JogoCatalogoRespostDto> mapaJogosLocais,
         AlgoritmoCuradoriaCatalogo algoritmo,
         ContextoCuradoria contexto)
     {
@@ -472,7 +414,7 @@ public class CatalogoService(
                     return CatalogoMapper.ToItemVitrineResponse(item, score);
                 }
 
-                var jogoTemporario = new Jogo
+                var jogoTemporario = new JogoCatalogoRespostDto
                 {
                     IdJogo = 0,
                     SteamAppId = item.SteamAppId,
