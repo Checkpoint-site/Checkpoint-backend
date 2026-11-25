@@ -19,10 +19,10 @@ public partial class SteamStoreService(
     [GeneratedRegex(@"\b(19\d{2}|20\d{2})\b")]
     private static partial Regex RegexAnoQuatroDigitos();
 
-    public async Task<IReadOnlyList<ItemBuscaSteamDto>> BuscarPorTermoAsync(string termo, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<ItemBuscaSteamDto>> BuscarJogosAsync(string jogoBuscado, CancellationToken cancellationToken = default)
     {
-        var termoCodificado = Uri.EscapeDataString(termo.Trim());
-        var url = $"storesearch/?term={termoCodificado}&l=brazilian&cc=BR";
+        var jogoCodificado = Uri.EscapeDataString(jogoBuscado.Trim());
+        var url = $"storesearch/?term={jogoCodificado}&l=brazilian&cc=BR";
 
         using var doc = await ObterJsonSteamAsync(url, cancellationToken);
 
