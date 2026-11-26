@@ -54,6 +54,10 @@ public class PostConfiguration : IEntityTypeConfiguration<Post>
             .IsRequired()
             .HasDefaultValue(0);
 
+        builder.Property(p => p.TemSpoiler)
+            .IsRequired()
+            .HasDefaultValue(false);
+
         builder.Property(p => p.PostDeletado)
             .IsRequired()
             .HasDefaultValue(false);

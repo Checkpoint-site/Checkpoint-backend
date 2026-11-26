@@ -167,6 +167,7 @@ public class EngajamentoLoggerRepository(ApplicationDbContext context) : IEngaja
                     Titulo = post.Titulo,
                     Fogueiras = post.Fogueiras,
                     QuantidadeCurtidas = post.QuantidadeCurtidas,
+                    TemSpoiler = post.TemSpoiler,
                     DataCriacao = post.DataCriacao
                 }
             })

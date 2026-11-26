@@ -8,5 +8,6 @@ public record RelatoResumoComunidadeDto
     public required string Titulo { get; init; }
     public required int Fogueiras { get; init; }
     public int QuantidadeCurtidas { get; init; }
+    public bool TemSpoiler { get; init; } = false;
     public required DateTime DataCriacao { get; init; }
 }
