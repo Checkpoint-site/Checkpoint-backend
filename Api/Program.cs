@@ -2,6 +2,7 @@ using Api.Endpoints.Cadastro;
 using Api.Endpoints.Catalogo;
 using Api.Endpoints.Estantes;
 using Api.Endpoints.Login;
+using Api.Endpoints.Moderacao;
 using Api.Extension;
 using Api.Middleware;
 using DotNetEnv;
@@ -37,6 +38,7 @@ var api = app.MapGroup("/api/v1")
 
 api.MapLoginEndpoint();
 api.MapCadastroEndpoint();
+api.MapModeracaoEndpoint();
 api.MapCatalogoEndpoint();
 api.MapEstanteEndpoint();
 
