@@ -36,7 +36,7 @@ public class UsuarioConfiguration : IEntityTypeConfiguration<Usuario>
 
         builder.Property(e => e.FotoPerfil)
             .IsRequired(false)
-            .HasMaxLength(500);
+            .HasColumnType("nvarchar(max)");
 
         builder.Property(e => e.QuantidadeSeguidores)
             .IsRequired()

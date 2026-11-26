@@ -1,11 +1,14 @@
 using Application.Dtos.Login.Requests;
+using Application.Factories;
+using Application.Interfaces;
 using Application.Services;
+using Application.Strategies.Perfis;
 using Application.Utils.Hash;
 using Domain.Dtos.Login.Commands;
-using Domain.Dtos.Login.Response;
+using Domain.Dtos.Login.Respost;
+using Domain.Enum;
 using Domain.Exceptions.Common;
 using Domain.Interfaces.Repository;
-using Xunit;
 
 namespace Test.Application.Services;
 
@@ -23,6 +26,9 @@ public class LoginServiceTests : IDisposable
     {
         Environment.SetEnvironmentVariable("JWT_SECRET_KEY", null);
     }
+
+    private static IRegraPerfilFactory CriarFactoryPerfis() =>
+        new RegraPerfilFactory([new RegraPerfilRegular(), new RegraPerfilModerador()]);
 
     private sealed class FakeLoginRepository : ILoginRepository
     {
@@ -51,11 +57,11 @@ public class LoginServiceTests : IDisposable
             Id = 1,
             Email = "cloud@midgar.com",
             Senha = senhaHash,
-            TipoPerfil = "Regular"
+            TipoPerfil = TipoPerfilUsuario.Regular
         };
         fakeRepo.Adicionar(usuario);
 
-        var service = new LoginService(fakeRepo);
+        var service = new LoginService(fakeRepo, CriarFactoryPerfis());
 
         var request = new LoginRequestDto
         {
@@ -81,12 +87,12 @@ public class LoginServiceTests : IDisposable
             Id = 2,
             Email = "suspenso@checkpoint.com",
             Senha = senhaHash,
-            TipoPerfil = "Regular",
+            TipoPerfil = TipoPerfilUsuario.Regular,
             SuspensoAte = DateTime.UtcNow.AddDays(5)
         };
         fakeRepo.Adicionar(usuario);
 
-        var service = new LoginService(fakeRepo);
+        var service = new LoginService(fakeRepo, CriarFactoryPerfis());
 
         var request = new LoginRequestDto
         {
@@ -102,7 +108,7 @@ public class LoginServiceTests : IDisposable
     public async Task AutenticarAsync_EmailInexistente_LancaAuthenticationException()
     {
         var fakeRepo = new FakeLoginRepository();
-        var service = new LoginService(fakeRepo);
+        var service = new LoginService(fakeRepo, CriarFactoryPerfis());
 
         var request = new LoginRequestDto
         {
@@ -125,11 +131,11 @@ public class LoginServiceTests : IDisposable
             Id = 1,
             Email = "tifa@midgar.com",
             Senha = senhaCorretaHash,
-            TipoPerfil = "Regular"
+            TipoPerfil = TipoPerfilUsuario.Regular
         };
         fakeRepo.Adicionar(usuario);
 
-        var service = new LoginService(fakeRepo);
+        var service = new LoginService(fakeRepo, CriarFactoryPerfis());
 
         var request = new LoginRequestDto
         {

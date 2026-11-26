@@ -312,8 +312,7 @@ namespace Persistence.Migrations
                         .HasColumnType("nvarchar(254)");
 
                     b.Property<string>("FotoPerfil")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Nome")
                         .IsRequired()
@@ -341,76 +340,6 @@ namespace Persistence.Migrations
                     b.ToTable("Usuarios", (string)null);
 
                     b.UseTptMappingStrategy();
-                });
-
-            modelBuilder.Entity("Domain.Model.Moderador", b =>
-                {
-                    b.HasBaseType("Domain.Model.Usuario");
-
-                    b.Property<string>("CodigoCredencial")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("SetorModeracao")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<int>("TotalAcoesModeracao")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.HasIndex("CodigoCredencial")
-                        .IsUnique()
-                        .HasFilter("[CodigoCredencial] IS NOT NULL");
-
-                    b.ToTable("Moderadores", (string)null);
-                });
-
-            modelBuilder.Entity("Domain.Model.UsuarioRegular", b =>
-                {
-                    b.HasBaseType("Domain.Model.Usuario");
-
-                    b.Property<string>("BiografiaGamer")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<int>("LimiteListas")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(15);
-
-                    b.Property<int>("NivelGamer")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(1);
-
-                    b.Property<int>("PontosExperiencia")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.ToTable("UsuariosRegulares", (string)null);
-                });
-
-            modelBuilder.Entity("Domain.Model.Moderador", b =>
-                {
-                    b.HasOne("Domain.Model.Usuario", null)
-                        .WithOne()
-                        .HasForeignKey("Domain.Model.Moderador", "Id")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Domain.Model.UsuarioRegular", b =>
-                {
-                    b.HasOne("Domain.Model.Usuario", null)
-                        .WithOne()
-                        .HasForeignKey("Domain.Model.UsuarioRegular", "Id")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
                 });
 
             modelBuilder.Entity("Domain.Model.Favoritos", b =>
@@ -556,6 +485,58 @@ namespace Persistence.Migrations
                     b.ToTable("UsuarioLoggers", (string)null);
                 });
 
+            modelBuilder.Entity("Domain.Model.Moderador", b =>
+                {
+                    b.HasBaseType("Domain.Model.Usuario");
+
+                    b.Property<string>("CodigoCredencial")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("SetorModeracao")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("TotalAcoesModeracao")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.HasIndex("CodigoCredencial")
+                        .IsUnique()
+                        .HasFilter("[CodigoCredencial] IS NOT NULL");
+
+                    b.ToTable("Moderadores", (string)null);
+                });
+
+            modelBuilder.Entity("Domain.Model.UsuarioRegular", b =>
+                {
+                    b.HasBaseType("Domain.Model.Usuario");
+
+                    b.Property<string>("BiografiaGamer")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("LimiteListas")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(15);
+
+                    b.Property<int>("NivelGamer")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
+                    b.Property<int>("PontosExperiencia")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.ToTable("UsuariosRegulares", (string)null);
+                });
+
             modelBuilder.Entity("Domain.Model.Catalogo", b =>
                 {
                     b.HasOne("Domain.Model.Usuario", null)
@@ -681,6 +662,24 @@ namespace Persistence.Migrations
                         .WithOne()
                         .HasForeignKey("Domain.Model.UsuarioLogger", "IdUsuario")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Domain.Model.Moderador", b =>
+                {
+                    b.HasOne("Domain.Model.Usuario", null)
+                        .WithOne()
+                        .HasForeignKey("Domain.Model.Moderador", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Domain.Model.UsuarioRegular", b =>
+                {
+                    b.HasOne("Domain.Model.Usuario", null)
+                        .WithOne()
+                        .HasForeignKey("Domain.Model.UsuarioRegular", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 #pragma warning restore 612, 618

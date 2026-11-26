@@ -1,5 +1,5 @@
 using Domain.Dtos.Login.Commands;
-using Domain.Dtos.Login.Response;
+using Domain.Dtos.Login.Respost;
 
 namespace Domain.Interfaces.Repository;
 

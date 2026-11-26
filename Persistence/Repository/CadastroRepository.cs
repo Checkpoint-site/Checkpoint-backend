@@ -1,5 +1,7 @@
 using Domain.Dtos.Cadastro.Commands;
-using Domain.Dtos.Cadastro.Response;
+using Domain.Dtos.Cadastro.Respost;
+using Domain.Enum;
+using Domain.Exceptions.Common;
 using Domain.Interfaces.Repository;
 using Domain.Model;
 using Microsoft.EntityFrameworkCore;
@@ -26,8 +28,18 @@ public class CadastroRepository(ApplicationDbContext context) : ICadastroReposit
 
         try
         {
-            if (string.Equals(command.TipoPerfil, "Moderador", StringComparison.OrdinalIgnoreCase))
+            if (command.TipoPerfil == TipoPerfilUsuario.Moderador)
             {
+                var credencialNormalizada = command.CodigoCredencial?.Trim() ?? string.Empty;
+                var credencialExiste = await context.Moderadores
+                    .AsNoTracking()
+                    .AnyAsync(m => m.CodigoCredencial == credencialNormalizada);
+
+                if (credencialExiste)
+                {
+                    throw new ConflictException("Este código de credencial de moderador já está em uso.");
+                }
+
                 var moderador = new Moderador
                 {
                     Nome = command.Nome,
@@ -35,8 +47,8 @@ public class CadastroRepository(ApplicationDbContext context) : ICadastroReposit
                     Senha = command.Senha,
                     ContaDeletada = false,
                     FotoPerfil = command.FotoPerfil,
-                    CodigoCredencial = command.CodigoCredencial ?? string.Empty,
-                    SetorModeracao = command.SetorModeracao ?? string.Empty,
+                    CodigoCredencial = credencialNormalizada,
+                    SetorModeracao = command.SetorModeracao?.Trim() ?? string.Empty,
                     TotalAcoesModeracao = 0
                 };
 
@@ -48,7 +60,7 @@ public class CadastroRepository(ApplicationDbContext context) : ICadastroReposit
                     Id = moderador.Id,
                     Nome = moderador.Nome,
                     Email = moderador.Email,
-                    TipoPerfil = "Moderador"
+                    TipoPerfil = TipoPerfilUsuario.Moderador
                 };
             }
 
@@ -70,12 +82,17 @@ public class CadastroRepository(ApplicationDbContext context) : ICadastroReposit
                 Id = usuarioRegular.Id,
                 Nome = usuarioRegular.Nome,
                 Email = usuarioRegular.Email,
-                TipoPerfil = "Regular"
+                TipoPerfil = TipoPerfilUsuario.Regular
             };
         }
         catch (DbUpdateException)
         {
-            return null;
+            if (await EmailExisteAsync(command.Email))
+            {
+                return null;
+            }
+
+            throw;
         }
     }
 }

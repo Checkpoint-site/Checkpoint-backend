@@ -1,5 +1,5 @@
 using Domain.Dtos.Cadastro.Commands;
-using Domain.Dtos.Cadastro.Response;
+using Domain.Dtos.Cadastro.Respost;
 
 namespace Domain.Interfaces.Repository;
 

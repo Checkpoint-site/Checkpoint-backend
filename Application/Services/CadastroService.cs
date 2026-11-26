@@ -1,7 +1,6 @@
 using Application.Dtos.Cadastro.Requests;
 using Application.Dtos.Cadastro.Responses;
 using Application.Interfaces;
-using Application.Regras.Perfis;
 using Application.Utils;
 using Application.Utils.Hash;
 using Application.Utils.Token;
@@ -16,7 +15,8 @@ public class CadastroService(
     ICadastroRepository repository,
     ICodigoVerificacaoService codigoVerificacaoService,
     IEmailService emailService,
-    IModeracaoFotoService moderacaoFotoService
+    IModeracaoFotoService moderacaoFotoService,
+    IRegraPerfilFactory regraPerfilFactory
 ) : ICadastroService
 {
     public async Task<VerificarEmailResponseDto> VerificarDisponibilidadeAsync(VerificarEmailRequestDto request)
@@ -62,6 +62,9 @@ public class CadastroService(
             throw new ValidationException("Código de verificação inválido ou expirado.");
         }
 
+        var regra = regraPerfilFactory.Criar(request.TipoPerfil);
+        regra.ValidarDadosCadastro(request);
+
         if (!string.IsNullOrWhiteSpace(request.FotoPerfil))
         {
             bool fotoSegura = await moderacaoFotoService.FotoEhSeguraAsync(request.FotoPerfil);
@@ -70,9 +73,6 @@ public class CadastroService(
                 throw new ValidationException("A foto de perfil contém conteúdo impróprio ou ofensivo.");
             }
         }
-
-        var regra = RegraPerfilUsuario.Criar(request.TipoPerfil);
-        regra.ValidarDadosCadastro(request);
 
         await codigoVerificacaoService.RemoverCodigoAsync(request.Email);
 
@@ -83,7 +83,8 @@ public class CadastroService(
         {
             Email = command.Email,
             Senha = senhaHash,
-            LimiteListasInicial = regra.ObterLimiteInicialListas()
+            TipoPerfil = regra.TipoPerfil,
+            LimiteListasInicial = regra.LimiteInicialListas
         };
 
         var usuarioCriado = await repository.CadastroRepositoryAsync(commandComHash)
@@ -92,7 +93,7 @@ public class CadastroService(
         string token = Token.GerarToken(
             usuarioCriado.Id,
             usuarioCriado.Email,
-            regra.ObterRole()
+            regra.RoleJwt
         );
 
         return new CadastroResponseDto

@@ -4,6 +4,7 @@ using Application.Services;
 using Application.Strategies.Algoritmos;
 using Application.Strategies.Busca;
 using Application.Strategies.Estantes;
+using Application.Strategies.Perfis;
 using Domain.Interfaces.Repository;
 using Domain.Interfaces.Services;
 using Persistence.Repository;
@@ -15,6 +16,10 @@ public static class InjecaoDependencia
 {
     public static IServiceCollection AddInjecaoDependencia(this IServiceCollection services)
     {
+        services.AddScoped<RegraPerfilUsuario, RegraPerfilRegular>();
+        services.AddScoped<RegraPerfilUsuario, RegraPerfilModerador>();
+        services.AddScoped<IRegraPerfilFactory, RegraPerfilFactory>();
+
         services.AddScoped<ILoginRepository, LoginRepository>();
         services.AddScoped<ILoginService, LoginService>();
 
@@ -22,7 +27,10 @@ public static class InjecaoDependencia
         services.AddScoped<ICodigoVerificacaoService, RedisCodigoVerificacaoService>();
         services.AddScoped<IEmailService, SmtpEmailService>();
 
-        services.AddHttpClient<IModeracaoFotoService, OpenAiModeracaoFotoService>();
+        services.AddHttpClient<IModeracaoFotoService, OpenAiModeracaoFotoService>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(15);
+        });
 
         services.AddScoped<ICadastroService, CadastroService>();
 

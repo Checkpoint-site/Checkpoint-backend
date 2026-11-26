@@ -30,6 +30,8 @@ public class OpenAiModeracaoFotoService(HttpClient httpClient, IConfiguration co
             using var request = new HttpRequestMessage(HttpMethod.Post, MODERATION_URL);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
 
+            string imagemFormatada = NormalizarEntradaImagem(urlOuBase64);
+
             var payload = new
             {
                 model = "omni-moderation-latest",
@@ -38,7 +40,7 @@ public class OpenAiModeracaoFotoService(HttpClient httpClient, IConfiguration co
                     new
                     {
                         type = "image_url",
-                        image_url = new { url = urlOuBase64 }
+                        image_url = new { url = imagemFormatada }
                     }
                 }
             };
@@ -68,5 +70,19 @@ public class OpenAiModeracaoFotoService(HttpClient httpClient, IConfiguration co
         {
             return true;
         }
+    }
+
+    private static string NormalizarEntradaImagem(string entrada)
+    {
+        string valor = entrada.Trim();
+
+        if (valor.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            valor.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
+            valor.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+        {
+            return valor;
+        }
+
+        return $"data:image/jpeg;base64,{valor}";
     }
 }
