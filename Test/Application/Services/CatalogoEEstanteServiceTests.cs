@@ -477,4 +477,56 @@ public class CatalogoEEstanteServiceTests
         Assert.Equal("ELDEN RING", detalhes.Nome);
         Assert.Equal(2022, detalhes.AnoLancamento);
     }
+
+    [Fact]
+    public async Task ObterUsuariosPopularesAsync_ConsideraSeguidoresEBonusDeFotoPerfilNaPontuacaoERanking()
+    {
+        var catalogoRepo = new FakeCatalogoRepository();
+        var loggerRepo = new FakeLoggerRepository();
+        var steamService = new FakeSteamStoreService();
+        var cacheService = new FakeCacheService();
+
+        loggerRepo.Populares =
+        [
+            new UsuarioPopularComunidadeDto
+            {
+                IdUsuario = 1,
+                NomeUsuario = "SemFoto",
+                PresencaPost = 2,
+                CurtidasRecebidas = 5,
+                QuantidadeSeguidores = 4,
+                PossuiFotoPerfil = false,
+                UltimosRelatos = []
+            },
+            new UsuarioPopularComunidadeDto
+            {
+                IdUsuario = 2,
+                NomeUsuario = "ComFoto",
+                PresencaPost = 2,
+                CurtidasRecebidas = 5,
+                QuantidadeSeguidores = 4,
+                PossuiFotoPerfil = true,
+                UltimosRelatos = []
+            }
+        ];
+
+        var catalogoService = new CatalogoService(
+            catalogoRepo,
+            loggerRepo,
+            steamService,
+            cacheService,
+            new BuscaCatalogoStrategyFactory([new BuscaPorNomeStrategy()]),
+            new AlgoritmoCuradoriaFactory([new AlgoritmoPopularidadeJogo()]));
+
+        var populares = await catalogoService.ObterUsuariosPopularesAsync(new ObterUsuariosPopularesRequestDto
+        {
+            Limite = 10
+        });
+
+        Assert.Equal(2, populares.Count);
+        Assert.Equal("ComFoto", populares[0].NomeUsuario);
+        Assert.True(populares[0].PossuiFotoPerfil);
+        Assert.Equal(4UL, populares[0].QuantidadeSeguidores);
+        Assert.Equal(populares[1].PontuacaoPopularidade + 10.0, populares[0].PontuacaoPopularidade);
+    }
 }

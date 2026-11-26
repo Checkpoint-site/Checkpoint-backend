@@ -285,11 +285,13 @@ public class CatalogoService(
         return populares
             .Select(u =>
             {
-                var pontuacao = (u.CurtidasRecebidas * 4.0)
-                              + (u.PresencaPost * 5.0)
-                              + (u.QuantidadeSeguidores * 3.0)
-                              + (u.PresencaComentario * 2.0)
-                              + (u.PresencaFavoritos * 1.0);
+                var pontuacao = ContextoCuradoria.CalcularForcaUsuarioLogger(
+                    u.CurtidasRecebidas,
+                    u.PresencaPost,
+                    u.QuantidadeSeguidores,
+                    u.PresencaComentario,
+                    u.PresencaFavoritos,
+                    u.PossuiFotoPerfil);
 
                 return new UsuarioPopularResponseDto
                 {
@@ -301,9 +303,12 @@ public class CatalogoService(
                     PresencaFavoritos = u.PresencaFavoritos,
                     CurtidasRecebidas = u.CurtidasRecebidas,
                     QuantidadeSeguidores = u.QuantidadeSeguidores,
+                    PossuiFotoPerfil = u.PossuiFotoPerfil,
                     UltimosRelatos = u.UltimosRelatos
                 };
             })
+            .OrderByDescending(u => u.PontuacaoPopularidade)
+            .ThenBy(u => u.NomeUsuario)
             .ToList();
     }
 

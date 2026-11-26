@@ -63,6 +63,40 @@ public class ContextoCuradoria
              + (logger.QuantidadeCurtida * 1.0);
     }
 
+    public static double CalcularForcaUsuarioLogger(UsuarioLoggerRespostDto? logger)
+    {
+        if (logger is null)
+        {
+            return 0.0;
+        }
+
+        return CalcularForcaUsuarioLogger(
+            logger.CurtidasRecebidas,
+            logger.PresencaPost,
+            logger.QuantidadeSeguidores,
+            logger.PresencaComentario,
+            logger.PresencaFavoritos,
+            logger.PossuiFotoPerfil);
+    }
+
+    public static double CalcularForcaUsuarioLogger(
+        ulong curtidasRecebidas,
+        ulong presencaPost,
+        ulong quantidadeSeguidores,
+        ulong presencaComentario,
+        ulong presencaFavoritos,
+        bool possuiFotoPerfil)
+    {
+        const double bonusFotoPerfil = 10.0;
+
+        return (curtidasRecebidas * 4.0)
+             + (presencaPost * 5.0)
+             + (quantidadeSeguidores * 3.0)
+             + (presencaComentario * 2.0)
+             + (presencaFavoritos * 1.0)
+             + (possuiFotoPerfil ? bonusFotoPerfil : 0.0);
+    }
+
     public double CalcularAfinidadeGenerosDoJogo(JogoCatalogoRespostDto jogo)
     {
         if (jogo.Generos.Count == 0)

@@ -12,5 +12,6 @@ public record UsuarioPopularResponseDto
     public ulong PresencaFavoritos { get; init; }
     public ulong CurtidasRecebidas { get; init; }
     public ulong QuantidadeSeguidores { get; init; }
+    public bool PossuiFotoPerfil { get; init; }
     public required IReadOnlyList<RelatoResumoComunidadeDto> UltimosRelatos { get; init; }
 }

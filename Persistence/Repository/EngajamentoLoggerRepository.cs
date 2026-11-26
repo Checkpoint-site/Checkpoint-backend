@@ -110,17 +110,37 @@ public class EngajamentoLoggerRepository(ApplicationDbContext context) : IEngaja
             select new
             {
                 Logger = logger,
-                usuario.Nome
+                usuario.Nome,
+                SeguidoresUsuario = usuario.QuantidadeSeguidores,
+                PossuiFotoPerfil = usuario.FotoPerfil != null && usuario.FotoPerfil != string.Empty
             })
             .ToListAsync(cancellationToken);
 
         var topUsuarios = loggers
-            .OrderByDescending(x =>
-                (x.Logger.CurtidasRecebidas * 4UL) +
-                (x.Logger.PresencaPost * 5UL) +
-                (x.Logger.QuantidadeSeguidores * 3UL) +
-                (x.Logger.PresencaComentario * 2UL) +
-                x.Logger.PresencaFavoritos)
+            .Select(x =>
+            {
+                var seguidores = Math.Max(
+                    x.Logger.QuantidadeSeguidores,
+                    x.SeguidoresUsuario > 0 ? (ulong)x.SeguidoresUsuario : 0UL);
+
+                var pontuacao = (x.Logger.CurtidasRecebidas * 4UL) +
+                                (x.Logger.PresencaPost * 5UL) +
+                                (seguidores * 3UL) +
+                                (x.Logger.PresencaComentario * 2UL) +
+                                x.Logger.PresencaFavoritos +
+                                (x.PossuiFotoPerfil ? 10UL : 0UL);
+
+                return new
+                {
+                    x.Logger,
+                    x.Nome,
+                    QuantidadeSeguidores = seguidores,
+                    x.PossuiFotoPerfil,
+                    Pontuacao = pontuacao
+                };
+            })
+            .OrderByDescending(x => x.Pontuacao)
+            .ThenBy(x => x.Nome)
             .Take(quantidade)
             .ToList();
 
@@ -168,7 +188,8 @@ public class EngajamentoLoggerRepository(ApplicationDbContext context) : IEngaja
                 PresencaFavoritos = u.Logger.PresencaFavoritos,
                 QuantidadeCurtida = u.Logger.QuantidadeCurtida,
                 CurtidasRecebidas = u.Logger.CurtidasRecebidas,
-                QuantidadeSeguidores = u.Logger.QuantidadeSeguidores,
+                QuantidadeSeguidores = u.QuantidadeSeguidores,
+                PossuiFotoPerfil = u.PossuiFotoPerfil,
                 UltimosRelatos = relatosPorUsuario.TryGetValue(u.Logger.IdUsuario, out var ultimos)
                     ? ultimos
                     : []
