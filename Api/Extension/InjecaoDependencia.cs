@@ -1,10 +1,10 @@
+using Api.Services;
 using Application.Factories;
 using Application.Interfaces;
 using Application.Services;
 using Application.Strategies.Algoritmos;
 using Application.Strategies.Busca;
 using Application.Strategies.Estantes;
-using Application.Strategies.Perfis;
 using Domain.Interfaces.Repository;
 using Domain.Interfaces.Services;
 using Persistence.Repository;
@@ -16,9 +16,7 @@ public static class InjecaoDependencia
 {
     public static IServiceCollection AddInjecaoDependencia(this IServiceCollection services)
     {
-        services.AddScoped<RegraPerfilUsuario, RegraPerfilRegular>();
-        services.AddScoped<RegraPerfilUsuario, RegraPerfilModerador>();
-        services.AddScoped<IRegraPerfilFactory, RegraPerfilFactory>();
+        services.AddHostedService<AdminBootstrapHostedService>();
 
         services.AddScoped<ILoginRepository, LoginRepository>();
         services.AddScoped<ILoginService, LoginService>();
@@ -33,6 +31,9 @@ public static class InjecaoDependencia
         });
 
         services.AddScoped<ICadastroService, CadastroService>();
+
+        services.AddScoped<ISolicitacaoModeradorRepository, SolicitacaoModeradorRepository>();
+        services.AddScoped<ISolicitacaoModeradorService, SolicitacaoModeradorService>();
 
         services.AddScoped<ICatalogoRepository, CatalogoRepository>();
         services.AddScoped<IEstanteRepository, EstanteRepository>();
