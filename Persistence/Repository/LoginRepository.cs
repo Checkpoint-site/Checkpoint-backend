@@ -1,8 +1,6 @@
 using Domain.Dtos.Login.Commands;
 using Domain.Dtos.Login.Respost;
-using Domain.Enum;
 using Domain.Interfaces.Repository;
-using Domain.Model;
 using Microsoft.EntityFrameworkCore;
 using Persistence.Context;
 
@@ -20,7 +18,7 @@ public class LoginRepository(ApplicationDbContext context) : ILoginRepository
                 Id = u.Id,
                 Email = u.Email,
                 Senha = u.Senha,
-                TipoPerfil = u is Moderador ? TipoPerfilUsuario.Moderador : TipoPerfilUsuario.Regular,
+                TipoPerfil = u.TipoPerfil,
                 SuspensoAte = u.SuspensoAte
             })
             .FirstOrDefaultAsync();

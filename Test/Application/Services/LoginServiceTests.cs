@@ -1,8 +1,5 @@
 using Application.Dtos.Login.Requests;
-using Application.Factories;
-using Application.Interfaces;
 using Application.Services;
-using Application.Strategies.Perfis;
 using Application.Utils.Hash;
 using Domain.Dtos.Login.Commands;
 using Domain.Dtos.Login.Respost;
@@ -26,9 +23,6 @@ public class LoginServiceTests : IDisposable
     {
         Environment.SetEnvironmentVariable("JWT_SECRET_KEY", null);
     }
-
-    private static IRegraPerfilFactory CriarFactoryPerfis() =>
-        new RegraPerfilFactory([new RegraPerfilRegular(), new RegraPerfilModerador()]);
 
     private sealed class FakeLoginRepository : ILoginRepository
     {
@@ -61,7 +55,7 @@ public class LoginServiceTests : IDisposable
         };
         fakeRepo.Adicionar(usuario);
 
-        var service = new LoginService(fakeRepo, CriarFactoryPerfis());
+        var service = new LoginService(fakeRepo);
 
         var request = new LoginRequestDto
         {
@@ -92,7 +86,7 @@ public class LoginServiceTests : IDisposable
         };
         fakeRepo.Adicionar(usuario);
 
-        var service = new LoginService(fakeRepo, CriarFactoryPerfis());
+        var service = new LoginService(fakeRepo);
 
         var request = new LoginRequestDto
         {
@@ -108,7 +102,7 @@ public class LoginServiceTests : IDisposable
     public async Task AutenticarAsync_EmailInexistente_LancaAuthenticationException()
     {
         var fakeRepo = new FakeLoginRepository();
-        var service = new LoginService(fakeRepo, CriarFactoryPerfis());
+        var service = new LoginService(fakeRepo);
 
         var request = new LoginRequestDto
         {
@@ -135,7 +129,7 @@ public class LoginServiceTests : IDisposable
         };
         fakeRepo.Adicionar(usuario);
 
-        var service = new LoginService(fakeRepo, CriarFactoryPerfis());
+        var service = new LoginService(fakeRepo);
 
         var request = new LoginRequestDto
         {

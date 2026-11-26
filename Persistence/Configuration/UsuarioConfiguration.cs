@@ -1,6 +1,7 @@
+using Domain.Enum;
+using Domain.Model;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Domain.Model;
 
 namespace Persistence.Configuration;
 
@@ -26,6 +27,13 @@ public class UsuarioConfiguration : IEntityTypeConfiguration<Usuario>
         builder.Property(e => e.Senha)
             .IsRequired()
             .HasMaxLength(256);
+
+        builder.Property(e => e.TipoPerfil)
+            .IsRequired()
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .HasDefaultValue(TipoPerfilUsuario.Regular)
+            .HasSentinel((TipoPerfilUsuario)0);
 
         builder.Property(e => e.ContaDeletada)
             .IsRequired()

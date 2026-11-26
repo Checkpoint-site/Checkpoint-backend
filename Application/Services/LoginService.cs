@@ -9,10 +9,7 @@ using static Application.Mappers.LoginMapper;
 
 namespace Application.Services;
 
-public class LoginService(
-    ILoginRepository repository,
-    IRegraPerfilFactory regraPerfilFactory
-) : ILoginService
+public class LoginService(ILoginRepository repository) : ILoginService
 {
     public async Task<LoginResponseDto> AutenticarAsync(LoginRequestDto request)
     {
@@ -26,8 +23,7 @@ public class LoginService(
             throw new AuthenticationException("E-mail ou senha inválidos.");
         }
 
-        var regra = regraPerfilFactory.Criar(usuarioDto.TipoPerfil);
-        if (regra.EstaSuspenso(usuarioDto.SuspensoAte))
+        if (usuarioDto.SuspensoAte.HasValue && usuarioDto.SuspensoAte.Value > DateTime.UtcNow)
         {
             throw new ForbiddenException("Esta conta está temporariamente suspensa.");
         }
@@ -35,7 +31,7 @@ public class LoginService(
         string token = Token.GerarToken(
             usuarioDto.Id,
             usuarioDto.Email,
-            regra.RoleJwt
+            usuarioDto.TipoPerfil.ToString()
         );
 
         return new LoginResponseDto

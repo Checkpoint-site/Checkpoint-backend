@@ -4,6 +4,7 @@ using Application.Interfaces;
 using Application.Utils;
 using Application.Utils.Hash;
 using Application.Utils.Token;
+using Domain.Enum;
 using Domain.Exceptions.Common;
 using Domain.Interfaces.Repository;
 using Domain.Interfaces.Services;
@@ -15,8 +16,7 @@ public class CadastroService(
     ICadastroRepository repository,
     ICodigoVerificacaoService codigoVerificacaoService,
     IEmailService emailService,
-    IModeracaoFotoService moderacaoFotoService,
-    IRegraPerfilFactory regraPerfilFactory
+    IModeracaoFotoService moderacaoFotoService
 ) : ICadastroService
 {
     public async Task<VerificarEmailResponseDto> VerificarDisponibilidadeAsync(VerificarEmailRequestDto request)
@@ -62,9 +62,6 @@ public class CadastroService(
             throw new ValidationException("Código de verificação inválido ou expirado.");
         }
 
-        var regra = regraPerfilFactory.Criar(request.TipoPerfil);
-        regra.ValidarDadosCadastro(request);
-
         if (!string.IsNullOrWhiteSpace(request.FotoPerfil))
         {
             bool fotoSegura = await moderacaoFotoService.FotoEhSeguraAsync(request.FotoPerfil);
@@ -83,8 +80,7 @@ public class CadastroService(
         {
             Email = command.Email,
             Senha = senhaHash,
-            TipoPerfil = regra.TipoPerfil,
-            LimiteListasInicial = regra.LimiteInicialListas
+            TipoPerfil = TipoPerfilUsuario.Regular
         };
 
         var usuarioCriado = await repository.CadastroRepositoryAsync(commandComHash)
@@ -93,7 +89,7 @@ public class CadastroService(
         string token = Token.GerarToken(
             usuarioCriado.Id,
             usuarioCriado.Email,
-            regra.RoleJwt
+            usuarioCriado.TipoPerfil.ToString()
         );
 
         return new CadastroResponseDto

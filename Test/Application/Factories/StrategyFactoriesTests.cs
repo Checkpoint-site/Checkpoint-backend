@@ -2,7 +2,6 @@ using Application.Factories;
 using Application.Strategies.Algoritmos;
 using Application.Strategies.Busca;
 using Application.Strategies.Estantes;
-using Application.Strategies.Perfis;
 using Domain.Enum;
 using Domain.Exceptions.Common;
 
@@ -58,22 +57,5 @@ public class StrategyFactoriesTests
         Assert.IsType<RegraEstantePretendeJogar>(factory.Criar("PretendeJogar"));
         Assert.Throws<ValidationException>(() => factory.Criar(""));
         Assert.Throws<ValidationException>(() => factory.Criar("abandonados"));
-    }
-
-    [Fact]
-    public void RegraPerfilFactory_ResolvePorEnumEPorStringERetornaPadraoRegularEBloqueiaInvalido()
-    {
-        var factory = new RegraPerfilFactory(
-        [
-            new RegraPerfilRegular(),
-            new RegraPerfilModerador()
-        ]);
-
-        Assert.IsType<RegraPerfilRegular>(factory.Criar((string?)null));
-        Assert.IsType<RegraPerfilRegular>(factory.Criar("regular"));
-        Assert.IsType<RegraPerfilRegular>(factory.Criar(TipoPerfilUsuario.Regular));
-        Assert.IsType<RegraPerfilModerador>(factory.Criar("Moderador"));
-        Assert.IsType<RegraPerfilModerador>(factory.Criar(TipoPerfilUsuario.Moderador));
-        Assert.Throws<ValidationException>(() => factory.Criar("admin-invalido"));
     }
 }

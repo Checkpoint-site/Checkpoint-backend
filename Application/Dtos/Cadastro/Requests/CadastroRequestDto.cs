@@ -21,10 +21,6 @@ public record CadastroRequestDto
     [RegularExpression(@"^\d{6}$", ErrorMessage = "O código de verificação deve conter exatamente 6 dígitos numéricos.")]
     public required string Codigo { get; init; }
 
-    public string TipoPerfil { get; init; } = "Regular";
-    public string? CodigoCredencial { get; init; }
-    public string? SetorModeracao { get; init; }
-
     [MaxLength(5_000_000, ErrorMessage = "A foto de perfil excede o tamanho máximo permitido.")]
     public string? FotoPerfil { get; init; }
 }

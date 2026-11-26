@@ -84,11 +84,14 @@ public static class AutenticacaoSeguranca
 
         services.AddAuthorization(options =>
         {
+            options.AddPolicy("AdminPolicy", policy =>
+                policy.RequireRole("Admin"));
+
             options.AddPolicy("ModeradorPolicy", policy =>
-                policy.RequireRole("Moderador"));
+                policy.RequireRole("Moderador", "Admin"));
 
             options.AddPolicy("UsuarioRegularPolicy", policy =>
-                policy.RequireRole("Regular", "Moderador"));
+                policy.RequireRole("Regular", "Moderador", "Admin"));
         });
 
         return services;

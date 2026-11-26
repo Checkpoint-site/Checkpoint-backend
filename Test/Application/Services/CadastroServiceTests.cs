@@ -1,10 +1,8 @@
 using Application.Dtos.Cadastro.Requests;
-using Application.Factories;
-using Application.Interfaces;
 using Application.Services;
-using Application.Strategies.Perfis;
 using Domain.Dtos.Cadastro.Commands;
 using Domain.Dtos.Cadastro.Respost;
+using Domain.Enum;
 using Domain.Exceptions.Common;
 using Domain.Interfaces.Repository;
 using Domain.Interfaces.Services;
@@ -25,9 +23,6 @@ public class CadastroServiceTests : IDisposable
     {
         Environment.SetEnvironmentVariable("JWT_SECRET_KEY", null);
     }
-
-    private static IRegraPerfilFactory CriarFactoryPerfis() =>
-        new RegraPerfilFactory([new RegraPerfilRegular(), new RegraPerfilModerador()]);
 
     private sealed class FakeCadastroRepository : ICadastroRepository
     {
@@ -109,7 +104,7 @@ public class CadastroServiceTests : IDisposable
         var fakeCodigo = new FakeCodigoVerificacaoService();
         var fakeEmail = new FakeEmailService();
         var fakeModeracao = new FakeModeracaoFotoService();
-        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail, fakeModeracao, CriarFactoryPerfis());
+        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail, fakeModeracao);
 
         var request = new VerificarEmailRequestDto { Email = "novo@jogador.com" };
 
@@ -126,7 +121,7 @@ public class CadastroServiceTests : IDisposable
         var fakeCodigo = new FakeCodigoVerificacaoService();
         var fakeEmail = new FakeEmailService();
         var fakeModeracao = new FakeModeracaoFotoService();
-        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail, fakeModeracao, CriarFactoryPerfis());
+        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail, fakeModeracao);
 
         fakeCodigo.Codigos["existente@jogador.com"] = "123456";
         await service.CadastrarAsync(new CadastroRequestDto
@@ -153,7 +148,7 @@ public class CadastroServiceTests : IDisposable
         var fakeCodigo = new FakeCodigoVerificacaoService();
         var fakeEmail = new FakeEmailService();
         var fakeModeracao = new FakeModeracaoFotoService();
-        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail, fakeModeracao, CriarFactoryPerfis());
+        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail, fakeModeracao);
 
         var request = new SolicitarCodigoRequestDto { Email = "arthur@van-der-linde.com" };
 
@@ -172,7 +167,7 @@ public class CadastroServiceTests : IDisposable
         var fakeCodigo = new FakeCodigoVerificacaoService();
         var fakeEmail = new FakeEmailService();
         var fakeModeracao = new FakeModeracaoFotoService();
-        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail, fakeModeracao, CriarFactoryPerfis());
+        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail, fakeModeracao);
 
         fakeCodigo.Codigos["arthur@van-der-linde.com"] = "111111";
         await service.CadastrarAsync(new CadastroRequestDto
@@ -190,13 +185,13 @@ public class CadastroServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task CadastrarAsync_CodigoCorretoEDadosValidos_CadastraComSucessoERetornaToken()
+    public async Task CadastrarAsync_CodigoCorretoEDadosValidos_CadastraComoRegularERetornaToken()
     {
         var fakeRepo = new FakeCadastroRepository();
         var fakeCodigo = new FakeCodigoVerificacaoService();
         var fakeEmail = new FakeEmailService();
         var fakeModeracao = new FakeModeracaoFotoService();
-        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail, fakeModeracao, CriarFactoryPerfis());
+        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail, fakeModeracao);
 
         fakeCodigo.Codigos["john@beechershope.com"] = "654321";
 
@@ -217,84 +212,8 @@ public class CadastroServiceTests : IDisposable
         Assert.False(string.IsNullOrWhiteSpace(resultado.Token));
         Assert.False(fakeCodigo.Codigos.ContainsKey("john@beechershope.com"));
         Assert.Single(fakeRepo.UsuariosSalvos);
+        Assert.Equal(TipoPerfilUsuario.Regular, fakeRepo.UsuariosSalvos[0].TipoPerfil);
         Assert.Equal(imagemBase64Longa, fakeRepo.UsuariosSalvos[0].FotoPerfil);
-    }
-
-    [Fact]
-    public async Task CadastrarAsync_ModeradorComDadosValidos_CadastraComSucesso()
-    {
-        var fakeRepo = new FakeCadastroRepository();
-        var fakeCodigo = new FakeCodigoVerificacaoService();
-        var fakeEmail = new FakeEmailService();
-        var fakeModeracao = new FakeModeracaoFotoService();
-        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail, fakeModeracao, CriarFactoryPerfis());
-
-        fakeCodigo.Codigos["mod@checkpoint.com"] = "999888";
-
-        var request = new CadastroRequestDto
-        {
-            Nome = "Moderador Geral",
-            Email = "mod@checkpoint.com",
-            Senha = "SenhaSegura123!",
-            Codigo = "999888",
-            TipoPerfil = "Moderador",
-            CodigoCredencial = "MOD-999",
-            SetorModeracao = "Geral"
-        };
-
-        var resultado = await service.CadastrarAsync(request);
-
-        Assert.NotNull(resultado);
-        Assert.False(string.IsNullOrWhiteSpace(resultado.Token));
-    }
-
-    [Fact]
-    public async Task CadastrarAsync_ModeradorSemCredencial_LancaValidationException()
-    {
-        var fakeRepo = new FakeCadastroRepository();
-        var fakeCodigo = new FakeCodigoVerificacaoService();
-        var fakeEmail = new FakeEmailService();
-        var fakeModeracao = new FakeModeracaoFotoService();
-        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail, fakeModeracao, CriarFactoryPerfis());
-
-        fakeCodigo.Codigos["mod@checkpoint.com"] = "999888";
-
-        var request = new CadastroRequestDto
-        {
-            Nome = "Moderador Incompleto",
-            Email = "mod@checkpoint.com",
-            Senha = "SenhaSegura123!",
-            Codigo = "999888",
-            TipoPerfil = "Moderador",
-            CodigoCredencial = null,
-            SetorModeracao = "Geral"
-        };
-
-        var ex = await Assert.ThrowsAsync<ValidationException>(() => service.CadastrarAsync(request));
-        Assert.Equal("O código de credencial é obrigatório para moderadores.", ex.Message);
-    }
-
-    [Fact]
-    public async Task CadastrarAsync_TipoPerfilInvalido_LancaValidationException()
-    {
-        var fakeRepo = new FakeCadastroRepository();
-        var fakeCodigo = new FakeCodigoVerificacaoService();
-        var fakeEmail = new FakeEmailService();
-        var fakeModeracao = new FakeModeracaoFotoService();
-        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail, fakeModeracao, CriarFactoryPerfis());
-
-        fakeCodigo.Codigos["user@checkpoint.com"] = "123456";
-
-        var request = new CadastroRequestDto
-        {
-            Nome = "Usuario",
-            Email = "user@checkpoint.com",
-            Senha = "SenhaSegura123!",
-            Codigo = "123456",
-            TipoPerfil = "SuperAdminInexistente"
-        };
-
-        await Assert.ThrowsAsync<ValidationException>(() => service.CadastrarAsync(request));
     }
 
     [Fact]
@@ -304,7 +223,7 @@ public class CadastroServiceTests : IDisposable
         var fakeCodigo = new FakeCodigoVerificacaoService();
         var fakeEmail = new FakeEmailService();
         var fakeModeracao = new FakeModeracaoFotoService { FotoSegura = false };
-        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail, fakeModeracao, CriarFactoryPerfis());
+        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail, fakeModeracao);
 
         fakeCodigo.Codigos["jogador@checkpoint.com"] = "123456";
 
@@ -328,7 +247,7 @@ public class CadastroServiceTests : IDisposable
         var fakeCodigo = new FakeCodigoVerificacaoService();
         var fakeEmail = new FakeEmailService();
         var fakeModeracao = new FakeModeracaoFotoService();
-        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail, fakeModeracao, CriarFactoryPerfis());
+        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail, fakeModeracao);
 
         fakeCodigo.Codigos["john@beechershope.com"] = "654321";
 
