@@ -6,6 +6,8 @@ namespace Persistence.Context;
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : DbContext(options)
 {
     public DbSet<Usuario> Usuarios { get; set; }
+    public DbSet<UsuarioRegular> UsuariosRegulares { get; set; }
+    public DbSet<Moderador> Moderadores { get; set; }
     public DbSet<Jogo> Jogos { get; set; }
     public DbSet<Catalogo> Catalogos { get; set; }
     public DbSet<Favoritos> Favoritos { get; set; }

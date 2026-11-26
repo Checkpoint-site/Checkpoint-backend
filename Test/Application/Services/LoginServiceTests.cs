@@ -42,7 +42,6 @@ public class LoginServiceTests : IDisposable
     [Fact]
     public async Task AutenticarAsync_CredenciaisValidas_RetornaLoginResponseDtoComToken()
     {
-        // Arrange
         var fakeRepo = new FakeLoginRepository();
         var senhaPura = "SenhaForte123!";
         var senhaHash = Hash.GerarHashSenha(senhaPura);
@@ -51,7 +50,8 @@ public class LoginServiceTests : IDisposable
         {
             Id = 1,
             Email = "cloud@midgar.com",
-            Senha = senhaHash
+            Senha = senhaHash,
+            TipoPerfil = "Regular"
         };
         fakeRepo.Adicionar(usuario);
 
@@ -63,28 +63,53 @@ public class LoginServiceTests : IDisposable
             Senha = senhaPura
         };
 
-        // Act
         var resultado = await service.AutenticarAsync(request);
 
-        // Assert
         Assert.NotNull(resultado);
         Assert.False(string.IsNullOrWhiteSpace(resultado.Token));
     }
 
     [Fact]
+    public async Task AutenticarAsync_UsuarioSuspenso_LancaForbiddenException()
+    {
+        var fakeRepo = new FakeLoginRepository();
+        var senhaPura = "SenhaForte123!";
+        var senhaHash = Hash.GerarHashSenha(senhaPura);
+
+        var usuario = new LoginRespostDto
+        {
+            Id = 2,
+            Email = "suspenso@checkpoint.com",
+            Senha = senhaHash,
+            TipoPerfil = "Regular",
+            SuspensoAte = DateTime.UtcNow.AddDays(5)
+        };
+        fakeRepo.Adicionar(usuario);
+
+        var service = new LoginService(fakeRepo);
+
+        var request = new LoginRequestDto
+        {
+            Email = "suspenso@checkpoint.com",
+            Senha = senhaPura
+        };
+
+        var ex = await Assert.ThrowsAsync<ForbiddenException>(() => service.AutenticarAsync(request));
+        Assert.Equal("Esta conta está temporariamente suspensa.", ex.Message);
+    }
+
+    [Fact]
     public async Task AutenticarAsync_EmailInexistente_LancaAuthenticationException()
     {
-        // Arrange
         var fakeRepo = new FakeLoginRepository();
         var service = new LoginService(fakeRepo);
 
         var request = new LoginRequestDto
         {
-            Email = "inexistente@midgar.com",
-            Senha = "SenhaQualquer123!"
+            Email = "fantasma@midgar.com",
+            Senha = "QualquerSenha123!"
         };
 
-        // Act & Assert
         var ex = await Assert.ThrowsAsync<AuthenticationException>(() => service.AutenticarAsync(request));
         Assert.Equal("E-mail ou senha inválidos.", ex.Message);
     }
@@ -92,25 +117,26 @@ public class LoginServiceTests : IDisposable
     [Fact]
     public async Task AutenticarAsync_SenhaIncorreta_LancaAuthenticationException()
     {
-        // Arrange
         var fakeRepo = new FakeLoginRepository();
+        var senhaCorretaHash = Hash.GerarHashSenha("SenhaCorreta123!");
+
+        var usuario = new LoginRespostDto
+        {
+            Id = 1,
+            Email = "tifa@midgar.com",
+            Senha = senhaCorretaHash,
+            TipoPerfil = "Regular"
+        };
+        fakeRepo.Adicionar(usuario);
+
         var service = new LoginService(fakeRepo);
 
         var request = new LoginRequestDto
         {
-            Email = "tifa@seventhheaven.com",
+            Email = "tifa@midgar.com",
             Senha = "SenhaErrada123!"
         };
 
-        var usuario = new LoginRespostDto
-        {
-            Id = 2,
-            Email = "tifa@seventhheaven.com",
-            Senha = Hash.GerarHashSenha("SenhaCorreta123!")
-        };
-        fakeRepo.Adicionar(usuario);
-
-        // Act & Assert
         var ex = await Assert.ThrowsAsync<AuthenticationException>(() => service.AutenticarAsync(request));
         Assert.Equal("E-mail ou senha inválidos.", ex.Message);
     }

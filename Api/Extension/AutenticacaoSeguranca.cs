@@ -35,7 +35,8 @@ public static class AutenticacaoSeguranca
                     ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecretKey)),
-                    ClockSkew = TimeSpan.Zero
+                    ClockSkew = TimeSpan.Zero,
+                    RoleClaimType = "role"
                 };
 
                 options.Events = new JwtBearerEvents
@@ -63,11 +64,32 @@ public static class AutenticacaoSeguranca
                         };
 
                         await context.Response.WriteAsJsonAsync(payload);
+                    },
+                    OnForbidden = async context =>
+                    {
+                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                        context.Response.ContentType = "application/json";
+
+                        var payload = new
+                        {
+                            status = StatusCodes.Status403Forbidden,
+                            erro = "AcessoProibido",
+                            mensagem = "Você não possui permissão para acessar este recurso."
+                        };
+
+                        await context.Response.WriteAsJsonAsync(payload);
                     }
                 };
             });
 
-        services.AddAuthorization();
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy("ModeradorPolicy", policy =>
+                policy.RequireRole("Moderador"));
+
+            options.AddPolicy("UsuarioRegularPolicy", policy =>
+                policy.RequireRole("Regular", "Moderador"));
+        });
 
         return services;
     }

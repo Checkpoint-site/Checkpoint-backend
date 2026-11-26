@@ -311,22 +311,106 @@ namespace Persistence.Migrations
                         .HasMaxLength(254)
                         .HasColumnType("nvarchar(254)");
 
+                    b.Property<string>("FotoPerfil")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<string>("Nome")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("QuantidadeSeguidores")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
 
                     b.Property<string>("Senha")
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
+                    b.Property<DateTime?>("SuspensoAte")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("Usuarios");
+                    b.ToTable("Usuarios", (string)null);
+
+                    b.UseTptMappingStrategy();
+                });
+
+            modelBuilder.Entity("Domain.Model.Moderador", b =>
+                {
+                    b.HasBaseType("Domain.Model.Usuario");
+
+                    b.Property<string>("CodigoCredencial")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("SetorModeracao")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("TotalAcoesModeracao")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.HasIndex("CodigoCredencial")
+                        .IsUnique()
+                        .HasFilter("[CodigoCredencial] IS NOT NULL");
+
+                    b.ToTable("Moderadores", (string)null);
+                });
+
+            modelBuilder.Entity("Domain.Model.UsuarioRegular", b =>
+                {
+                    b.HasBaseType("Domain.Model.Usuario");
+
+                    b.Property<string>("BiografiaGamer")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("LimiteListas")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(15);
+
+                    b.Property<int>("NivelGamer")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
+                    b.Property<int>("PontosExperiencia")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.ToTable("UsuariosRegulares", (string)null);
+                });
+
+            modelBuilder.Entity("Domain.Model.Moderador", b =>
+                {
+                    b.HasOne("Domain.Model.Usuario", null)
+                        .WithOne()
+                        .HasForeignKey("Domain.Model.Moderador", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Domain.Model.UsuarioRegular", b =>
+                {
+                    b.HasOne("Domain.Model.Usuario", null)
+                        .WithOne()
+                        .HasForeignKey("Domain.Model.UsuarioRegular", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Domain.Model.Favoritos", b =>

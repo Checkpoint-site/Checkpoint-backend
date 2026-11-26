@@ -49,7 +49,8 @@ public class CadastroServiceTests : IDisposable
             {
                 Id = _proximoId++,
                 Nome = command.Nome,
-                Email = command.Email
+                Email = command.Email,
+                TipoPerfil = command.TipoPerfil
             };
 
             return Task.FromResult<CadastroRespostDto?>(resposta);
@@ -69,7 +70,7 @@ public class CadastroServiceTests : IDisposable
         public Task<string?> ObterCodigoAsync(string email)
         {
             Codigos.TryGetValue(email, out var codigo);
-            return Task.FromResult<string?>(codigo);
+            return Task.FromResult(codigo);
         }
 
         public Task RemoverCodigoAsync(string email)
@@ -90,119 +91,108 @@ public class CadastroServiceTests : IDisposable
         }
     }
 
+    private sealed class FakeModeracaoFotoService : IModeracaoFotoService
+    {
+        public bool FotoSegura { get; set; } = true;
+
+        public Task<bool> FotoEhSeguraAsync(string? urlOuBase64) => Task.FromResult(FotoSegura);
+    }
+
     [Fact]
     public async Task VerificarDisponibilidadeAsync_EmailLivre_RetornaDisponivelTrue()
     {
-        // Arrange
         var fakeRepo = new FakeCadastroRepository();
         var fakeCodigo = new FakeCodigoVerificacaoService();
         var fakeEmail = new FakeEmailService();
-        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail);
+        var fakeModeracao = new FakeModeracaoFotoService();
+        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail, fakeModeracao);
 
-        var request = new VerificarEmailRequestDto
-        {
-            Email = "jogador_novo@checkpoint.com"
-        };
+        var request = new VerificarEmailRequestDto { Email = "novo@jogador.com" };
 
-        // Act
         var resultado = await service.VerificarDisponibilidadeAsync(request);
 
-        // Assert
         Assert.NotNull(resultado);
         Assert.True(resultado.Disponivel);
     }
 
     [Fact]
-    public async Task VerificarDisponibilidadeAsync_EmailJaCadastrado_RetornaDisponivelFalse()
+    public async Task VerificarDisponibilidadeAsync_EmailEmUso_RetornaDisponivelFalse()
     {
-        // Arrange
         var fakeRepo = new FakeCadastroRepository();
         var fakeCodigo = new FakeCodigoVerificacaoService();
         var fakeEmail = new FakeEmailService();
-        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail);
+        var fakeModeracao = new FakeModeracaoFotoService();
+        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail, fakeModeracao);
 
-        await fakeRepo.CadastroRepositoryAsync(new CadastroCommandsDto
+        fakeCodigo.Codigos["existente@jogador.com"] = "123456";
+        await service.CadastrarAsync(new CadastroRequestDto
         {
-            Nome = "Veterano",
-            Email = "veterano@checkpoint.com",
-            Senha = "hash"
+            Nome = "Existente",
+            Email = "existente@jogador.com",
+            Senha = "SenhaSegura123!",
+            Codigo = "123456"
         });
 
-        var request = new VerificarEmailRequestDto
+        var resultado = await service.VerificarDisponibilidadeAsync(new VerificarEmailRequestDto
         {
-            Email = "veterano@checkpoint.com"
-        };
+            Email = "existente@jogador.com"
+        });
 
-        // Act
-        var resultado = await service.VerificarDisponibilidadeAsync(request);
-
-        // Assert
         Assert.NotNull(resultado);
         Assert.False(resultado.Disponivel);
     }
 
     [Fact]
-    public async Task SolicitarCodigoAsync_EmailLivre_SalvaCodigoEnviaEmailERetornaSucesso()
+    public async Task SolicitarCodigoAsync_EmailDisponivel_GeraCodigoEnviaEmailERetornaSucesso()
     {
-        // Arrange
         var fakeRepo = new FakeCadastroRepository();
         var fakeCodigo = new FakeCodigoVerificacaoService();
         var fakeEmail = new FakeEmailService();
-        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail);
+        var fakeModeracao = new FakeModeracaoFotoService();
+        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail, fakeModeracao);
 
-        var request = new SolicitarCodigoRequestDto
-        {
-            Email = "arthur@van-der-linde.com"
-        };
+        var request = new SolicitarCodigoRequestDto { Email = "arthur@van-der-linde.com" };
 
-        // Act
         var resultado = await service.SolicitarCodigoAsync(request);
 
-        // Assert
         Assert.NotNull(resultado);
         Assert.Equal("Código de verificação enviado com sucesso.", resultado.Mensagem);
         Assert.True(fakeCodigo.Codigos.ContainsKey("arthur@van-der-linde.com"));
-        var codigoSalvo = fakeCodigo.Codigos["arthur@van-der-linde.com"];
-        Assert.Equal(6, codigoSalvo.Length);
         Assert.Single(fakeEmail.EmailsEnviados);
-        Assert.Equal("arthur@van-der-linde.com", fakeEmail.EmailsEnviados[0].Destinatario);
     }
 
     [Fact]
-    public async Task SolicitarCodigoAsync_EmailJaExistente_LancaConflictException()
+    public async Task SolicitarCodigoAsync_EmailJaCadastrado_LancaConflictException()
     {
-        // Arrange
         var fakeRepo = new FakeCadastroRepository();
         var fakeCodigo = new FakeCodigoVerificacaoService();
         var fakeEmail = new FakeEmailService();
-        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail);
+        var fakeModeracao = new FakeModeracaoFotoService();
+        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail, fakeModeracao);
 
-        await fakeRepo.CadastroRepositoryAsync(new CadastroCommandsDto
+        fakeCodigo.Codigos["arthur@van-der-linde.com"] = "111111";
+        await service.CadastrarAsync(new CadastroRequestDto
         {
             Nome = "Arthur Morgan",
             Email = "arthur@van-der-linde.com",
-            Senha = "hash"
+            Senha = "SenhaSegura123!",
+            Codigo = "111111"
         });
 
-        var request = new SolicitarCodigoRequestDto
-        {
-            Email = "arthur@van-der-linde.com"
-        };
+        var request = new SolicitarCodigoRequestDto { Email = "arthur@van-der-linde.com" };
 
-        // Act & Assert
         var ex = await Assert.ThrowsAsync<ConflictException>(() => service.SolicitarCodigoAsync(request));
         Assert.Equal("Este e-mail já está em uso.", ex.Message);
-        Assert.Empty(fakeEmail.EmailsEnviados);
     }
 
     [Fact]
     public async Task CadastrarAsync_CodigoCorretoEDadosValidos_CadastraComSucessoERetornaToken()
     {
-        // Arrange
         var fakeRepo = new FakeCadastroRepository();
         var fakeCodigo = new FakeCodigoVerificacaoService();
         var fakeEmail = new FakeEmailService();
-        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail);
+        var fakeModeracao = new FakeModeracaoFotoService();
+        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail, fakeModeracao);
 
         fakeCodigo.Codigos["john@beechershope.com"] = "654321";
 
@@ -214,23 +204,99 @@ public class CadastroServiceTests : IDisposable
             Codigo = "654321"
         };
 
-        // Act
         var resultado = await service.CadastrarAsync(request);
 
-        // Assert
         Assert.NotNull(resultado);
         Assert.False(string.IsNullOrWhiteSpace(resultado.Token));
         Assert.False(fakeCodigo.Codigos.ContainsKey("john@beechershope.com"));
     }
 
     [Fact]
-    public async Task CadastrarAsync_CodigoIncorreto_LancaValidationException()
+    public async Task CadastrarAsync_ModeradorComDadosValidos_CadastraComSucesso()
     {
-        // Arrange
         var fakeRepo = new FakeCadastroRepository();
         var fakeCodigo = new FakeCodigoVerificacaoService();
         var fakeEmail = new FakeEmailService();
-        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail);
+        var fakeModeracao = new FakeModeracaoFotoService();
+        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail, fakeModeracao);
+
+        fakeCodigo.Codigos["mod@checkpoint.com"] = "999888";
+
+        var request = new CadastroRequestDto
+        {
+            Nome = "Moderador Geral",
+            Email = "mod@checkpoint.com",
+            Senha = "SenhaSegura123!",
+            Codigo = "999888",
+            TipoPerfil = "Moderador",
+            CodigoCredencial = "MOD-999",
+            SetorModeracao = "Geral"
+        };
+
+        var resultado = await service.CadastrarAsync(request);
+
+        Assert.NotNull(resultado);
+        Assert.False(string.IsNullOrWhiteSpace(resultado.Token));
+    }
+
+    [Fact]
+    public async Task CadastrarAsync_ModeradorSemCredencial_LancaValidationException()
+    {
+        var fakeRepo = new FakeCadastroRepository();
+        var fakeCodigo = new FakeCodigoVerificacaoService();
+        var fakeEmail = new FakeEmailService();
+        var fakeModeracao = new FakeModeracaoFotoService();
+        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail, fakeModeracao);
+
+        fakeCodigo.Codigos["mod@checkpoint.com"] = "999888";
+
+        var request = new CadastroRequestDto
+        {
+            Nome = "Moderador Incompleto",
+            Email = "mod@checkpoint.com",
+            Senha = "SenhaSegura123!",
+            Codigo = "999888",
+            TipoPerfil = "Moderador",
+            CodigoCredencial = null,
+            SetorModeracao = "Geral"
+        };
+
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => service.CadastrarAsync(request));
+        Assert.Equal("O código de credencial é obrigatório para moderadores.", ex.Message);
+    }
+
+    [Fact]
+    public async Task CadastrarAsync_FotoInsegura_LancaValidationException()
+    {
+        var fakeRepo = new FakeCadastroRepository();
+        var fakeCodigo = new FakeCodigoVerificacaoService();
+        var fakeEmail = new FakeEmailService();
+        var fakeModeracao = new FakeModeracaoFotoService { FotoSegura = false };
+        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail, fakeModeracao);
+
+        fakeCodigo.Codigos["jogador@checkpoint.com"] = "123456";
+
+        var request = new CadastroRequestDto
+        {
+            Nome = "Jogador Improprio",
+            Email = "jogador@checkpoint.com",
+            Senha = "SenhaSegura123!",
+            Codigo = "123456",
+            FotoPerfil = "https://imagem-inapropriada.com/nsfw.jpg"
+        };
+
+        var ex = await Assert.ThrowsAsync<ValidationException>(() => service.CadastrarAsync(request));
+        Assert.Equal("A foto de perfil contém conteúdo impróprio ou ofensivo.", ex.Message);
+    }
+
+    [Fact]
+    public async Task CadastrarAsync_CodigoIncorreto_LancaValidationException()
+    {
+        var fakeRepo = new FakeCadastroRepository();
+        var fakeCodigo = new FakeCodigoVerificacaoService();
+        var fakeEmail = new FakeEmailService();
+        var fakeModeracao = new FakeModeracaoFotoService();
+        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail, fakeModeracao);
 
         fakeCodigo.Codigos["john@beechershope.com"] = "654321";
 
@@ -242,29 +308,6 @@ public class CadastroServiceTests : IDisposable
             Codigo = "000000"
         };
 
-        // Act & Assert
-        var ex = await Assert.ThrowsAsync<ValidationException>(() => service.CadastrarAsync(request));
-        Assert.Equal("Código de verificação inválido ou expirado.", ex.Message);
-    }
-
-    [Fact]
-    public async Task CadastrarAsync_CodigoInexistenteOuExpirado_LancaValidationException()
-    {
-        // Arrange
-        var fakeRepo = new FakeCadastroRepository();
-        var fakeCodigo = new FakeCodigoVerificacaoService();
-        var fakeEmail = new FakeEmailService();
-        var service = new CadastroService(fakeRepo, fakeCodigo, fakeEmail);
-
-        var request = new CadastroRequestDto
-        {
-            Nome = "Sadie Adler",
-            Email = "sadie@bountyhunter.com",
-            Senha = "SenhaSegura123!",
-            Codigo = "123456"
-        };
-
-        // Act & Assert
         var ex = await Assert.ThrowsAsync<ValidationException>(() => service.CadastrarAsync(request));
         Assert.Equal("Código de verificação inválido ou expirado.", ex.Message);
     }

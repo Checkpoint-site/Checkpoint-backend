@@ -21,6 +21,9 @@ public static class InjecaoDependencia
         services.AddScoped<ICadastroRepository, CadastroRepository>();
         services.AddScoped<ICodigoVerificacaoService, RedisCodigoVerificacaoService>();
         services.AddScoped<IEmailService, SmtpEmailService>();
+
+        services.AddHttpClient<IModeracaoFotoService, OpenAiModeracaoFotoService>();
+
         services.AddScoped<ICadastroService, CadastroService>();
 
         services.AddScoped<ICatalogoRepository, CatalogoRepository>();

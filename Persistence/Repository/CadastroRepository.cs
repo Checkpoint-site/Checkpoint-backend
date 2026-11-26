@@ -19,35 +19,63 @@ public class CadastroRepository(ApplicationDbContext context) : ICadastroReposit
     public async Task<CadastroRespostDto?> CadastroRepositoryAsync(CadastroCommandsDto command)
     {
         var emailExiste = await EmailExisteAsync(command.Email);
-
         if (emailExiste)
         {
             return null;
         }
 
-        var usuario = new Usuario
-        {
-            Nome = command.Nome,
-            Email = command.Email,
-            Senha = command.Senha,
-            ContaDeletada = false
-        };
-
         try
         {
-            await context.Usuarios.AddAsync(usuario);
+            if (string.Equals(command.TipoPerfil, "Moderador", StringComparison.OrdinalIgnoreCase))
+            {
+                var moderador = new Moderador
+                {
+                    Nome = command.Nome,
+                    Email = command.Email,
+                    Senha = command.Senha,
+                    ContaDeletada = false,
+                    FotoPerfil = command.FotoPerfil,
+                    CodigoCredencial = command.CodigoCredencial ?? string.Empty,
+                    SetorModeracao = command.SetorModeracao ?? string.Empty,
+                    TotalAcoesModeracao = 0
+                };
+
+                await context.Moderadores.AddAsync(moderador);
+                await context.SaveChangesAsync();
+
+                return new CadastroRespostDto
+                {
+                    Id = moderador.Id,
+                    Nome = moderador.Nome,
+                    Email = moderador.Email,
+                    TipoPerfil = "Moderador"
+                };
+            }
+
+            var usuarioRegular = new UsuarioRegular
+            {
+                Nome = command.Nome,
+                Email = command.Email,
+                Senha = command.Senha,
+                ContaDeletada = false,
+                FotoPerfil = command.FotoPerfil,
+                LimiteListas = command.LimiteListasInicial
+            };
+
+            await context.UsuariosRegulares.AddAsync(usuarioRegular);
             await context.SaveChangesAsync();
+
+            return new CadastroRespostDto
+            {
+                Id = usuarioRegular.Id,
+                Nome = usuarioRegular.Nome,
+                Email = usuarioRegular.Email,
+                TipoPerfil = "Regular"
+            };
         }
         catch (DbUpdateException)
         {
             return null;
         }
-
-        return new CadastroRespostDto
-        {
-            Id = usuario.Id,
-            Nome = usuario.Nome,
-            Email = usuario.Email
-        };
     }
 }

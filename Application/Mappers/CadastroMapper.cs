@@ -8,5 +8,6 @@ namespace Application.Mappers;
 public static partial class CadastroMapper
 {
     [MapperIgnoreSource(nameof(CadastroRequestDto.Codigo))]
+    [MapperIgnoreTarget(nameof(CadastroCommandsDto.LimiteListasInicial))]
     public static partial CadastroCommandsDto ToCommand(CadastroRequestDto request);
 }
