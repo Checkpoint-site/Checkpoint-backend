@@ -69,4 +69,21 @@ public class BuscaCatalogoStrategyTests
         EstrategiaBuscaCatalogo estrategia = new BuscaPorAnoStrategy();
         Assert.Throws<ValidationException>(() => estrategia.ValidarBusca(ano));
     }
+
+    [Fact]
+    public void BuscaPorNomeEAutor_IgnoraSimbolosDeMarcaApostrofosHifensEAcentos()
+    {
+        var catalogo = new List<JogoCatalogoRespostDto>
+        {
+            CriarJogo(1, "Baldur's Gate 3", 2023, "Larian Studios", "Larian Studios"),
+            CriarJogo(2, "The Witcher® 3: Wild Hunt", 2015, "CD PROJEKT RED", "CD PROJEKT RED"),
+            CriarJogo(3, "Marvel’s Spider-Man Remastered", 2022, "Insomniac Games", "PlayStation Publishing")
+        };
+
+        EstrategiaBuscaCatalogo buscaNome = new BuscaPorNomeStrategy();
+
+        Assert.Single(buscaNome.FiltrarCandidatos(catalogo, "baldurs gate"));
+        Assert.Single(buscaNome.FiltrarCandidatos(catalogo, "witcher 3"));
+        Assert.Single(buscaNome.FiltrarCandidatos(catalogo, "spider man"));
+    }
 }

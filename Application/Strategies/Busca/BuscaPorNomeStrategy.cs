@@ -9,24 +9,36 @@ public class BuscaPorNomeStrategy : EstrategiaBuscaCatalogo
 
     public override bool AtendeCriterio(JogoCatalogoRespostDto jogo, string jogoBuscado)
     {
-        var filtro = jogoBuscado.Trim();
-        return jogo.Nome.Contains(filtro, StringComparison.OrdinalIgnoreCase);
+        var nomeNorm = NormalizarTextoBusca(jogo.Nome);
+        var buscaNorm = NormalizarTextoBusca(jogoBuscado);
+        return ContemTodosOsTermos(nomeNorm, buscaNorm);
     }
 
     public override double CalcularAfinidade(JogoCatalogoRespostDto jogo, string jogoBuscado)
     {
-        var filtro = jogoBuscado.Trim();
+        var nomeNorm = NormalizarTextoBusca(jogo.Nome);
+        var buscaNorm = NormalizarTextoBusca(jogoBuscado);
 
-        if (jogo.Nome.Equals(filtro, StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrEmpty(nomeNorm) || string.IsNullOrEmpty(buscaNorm))
+        {
+            return 0.0;
+        }
+
+        if (nomeNorm.Equals(buscaNorm, StringComparison.Ordinal))
         {
             return 1.0;
         }
 
-        if (jogo.Nome.StartsWith(filtro, StringComparison.OrdinalIgnoreCase))
+        if (nomeNorm.StartsWith(buscaNorm, StringComparison.Ordinal))
         {
             return 0.9;
         }
 
-        return jogo.Nome.Contains(filtro, StringComparison.OrdinalIgnoreCase) ? 0.75 : 0.0;
+        if (nomeNorm.Contains(buscaNorm, StringComparison.Ordinal))
+        {
+            return 0.75;
+        }
+
+        return ContemTodosOsTermos(nomeNorm, buscaNorm) ? 0.65 : 0.0;
     }
 }

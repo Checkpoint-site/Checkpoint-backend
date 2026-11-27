@@ -7,6 +7,7 @@ public record JogoMetricasLoggerResponseDto
     public ulong PresencaComentario { get; init; }
     public ulong PresencaFavoritos { get; init; }
     public ulong PresencaPretendeJogar { get; init; }
-    public ulong SomaFogueiras { get; init; }
+    public double SomaFogueiras { get; init; }
+    public ulong TotalAvaliacoes { get; init; }
     public double MediaFogueiras { get; init; }
 }

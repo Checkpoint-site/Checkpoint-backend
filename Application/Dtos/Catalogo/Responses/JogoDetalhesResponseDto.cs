@@ -20,5 +20,9 @@ public record JogoDetalhesResponseDto
     public int? PrecoFinalCentavos { get; init; }
     public int PercentualDesconto { get; init; }
     public DateTime SincronizadoEm { get; init; }
+    public double MediaFogueiras { get; init; }
+    public int TotalAvaliacoes { get; init; }
+    public IReadOnlyList<FaixaDistribuicaoFogueirasResponseDto> DistribuicaoFogueiras { get; init; } = [];
+    public IReadOnlyList<JogoResumoResponseDto> JogosRelacionados { get; init; } = [];
     public required JogoMetricasLoggerResponseDto EngajamentoComunidade { get; init; }
 }
