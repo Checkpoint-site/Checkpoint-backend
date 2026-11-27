@@ -25,4 +25,15 @@ public static class ClaimsPrincipalExtensions
         return user.ObterIdUsuarioOpcional()
             ?? throw new AuthenticationException("Não foi possível identificar o usuário autenticado no token.");
     }
+
+    public static string? ObterRoleOpcional(this ClaimsPrincipal user)
+    {
+        if (user.Identity?.IsAuthenticated != true)
+        {
+            return null;
+        }
+
+        return user.FindFirstValue(ClaimTypes.Role)
+            ?? user.FindFirstValue("role");
+    }
 }

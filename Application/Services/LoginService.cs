@@ -31,7 +31,8 @@ public class LoginService(ILoginRepository repository) : ILoginService
         string token = Token.GerarToken(
             usuarioDto.Id,
             usuarioDto.Email,
-            usuarioDto.TipoPerfil.ToString()
+            usuarioDto.TipoPerfil.ToString(),
+            nome: usuarioDto.Nome
         );
 
         return new LoginResponseDto

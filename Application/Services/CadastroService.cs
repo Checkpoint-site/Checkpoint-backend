@@ -89,7 +89,8 @@ public class CadastroService(
         string token = Token.GerarToken(
             usuarioCriado.Id,
             usuarioCriado.Email,
-            usuarioCriado.TipoPerfil.ToString()
+            usuarioCriado.TipoPerfil.ToString(),
+            nome: usuarioCriado.Nome
         );
 
         return new CadastroResponseDto

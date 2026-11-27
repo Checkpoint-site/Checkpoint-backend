@@ -16,10 +16,12 @@ public class LoginRepository(ApplicationDbContext context) : ILoginRepository
             .Select(u => new LoginRespostDto
             {
                 Id = u.Id,
+                Nome = u.Nome,
                 Email = u.Email,
                 Senha = u.Senha,
                 TipoPerfil = u.TipoPerfil,
-                SuspensoAte = u.SuspensoAte
+                SuspensoAte = u.SuspensoAte,
+                FotoPerfil = u.FotoPerfil
             })
             .FirstOrDefaultAsync();
     }
