@@ -23,4 +23,8 @@ public interface ICatalogoService
     Task<IReadOnlyList<UsuarioPopularResponseDto>> ObterUsuariosPopularesAsync(
         ObterUsuariosPopularesRequestDto request,
         CancellationToken cancellationToken = default);
+
+    Task<DescobertaCatalogoResponseDto> ObterJogosAleatoriosAsync(
+        ObterJogosAleatoriosRequestDto request,
+        CancellationToken cancellationToken = default);
 }

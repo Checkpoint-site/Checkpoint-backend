@@ -3,6 +3,7 @@ using Application.Dtos.Catalogo.Responses;
 using Application.Interfaces;
 using Application.Mappers;
 using Application.Strategies.Algoritmos;
+using Application.Utils;
 using Domain.Dtos.Catalogo;
 using Domain.Dtos.Catalogo.Commands;
 using Domain.Dtos.Catalogo.Respost;
@@ -19,7 +20,8 @@ public class CatalogoService(
     ISteamStoreService steamStoreService,
     ICatalogoCacheService cacheService,
     IBuscaCatalogoStrategyFactory buscaStrategyFactory,
-    IAlgoritmoCuradoriaFactory algoritmoCuradoriaFactory
+    IAlgoritmoCuradoriaFactory algoritmoCuradoriaFactory,
+    IPostRepository? postRepository = null
 ) : ICatalogoService
 {
     private const int MinimoCandidatosLocais = 5;
@@ -63,13 +65,32 @@ public class CatalogoService(
             .ToDictionary(j => j.SteamAppId);
 
         var correspondenciasLocais = estrategia.FiltrarCandidatos(todosCandidatos.Values, jogoBuscadoLimpo);
+        HashSet<int> steamIdsRetornadosPelaBusca = [];
 
         if (correspondenciasLocais.Count < MinimoCandidatosLocais)
         {
-            await HidratarCandidatosDaSteamAsync(jogoBuscadoLimpo, todosCandidatos, temFallbackLocal: correspondenciasLocais.Count > 0, cancellationToken);
+            steamIdsRetornadosPelaBusca = await HidratarCandidatosDaSteamAsync(
+                jogoBuscadoLimpo,
+                estrategia.TipoBusca,
+                todosCandidatos,
+                temFallbackLocal: correspondenciasLocais.Count > 0,
+                cancellationToken);
         }
 
-        var filtrados = estrategia.FiltrarCandidatos(todosCandidatos.Values, jogoBuscadoLimpo);
+        var filtrados = estrategia.FiltrarCandidatos(todosCandidatos.Values, jogoBuscadoLimpo).ToList();
+
+        if (estrategia.TipoBusca == TipoBuscaCatalogo.Nome && steamIdsRetornadosPelaBusca.Count > 0)
+        {
+            var idsJaIncluidos = filtrados.Select(f => f.Jogo.SteamAppId).ToHashSet();
+            foreach (var steamId in steamIdsRetornadosPelaBusca)
+            {
+                if (!idsJaIncluidos.Contains(steamId) && todosCandidatos.TryGetValue(steamId, out var jogoHidratado))
+                {
+                    filtrados.Add((jogoHidratado, 0.6));
+                }
+            }
+        }
+
         var jogosFiltrados = filtrados.Select(f => f.Jogo).ToList();
         var precisaOfertasAoVivo = algoritmoEscolhido.TipoAlgoritmo == TipoAlgoritmoCuradoria.CustoBeneficio;
 
@@ -236,7 +257,12 @@ public class CatalogoService(
         }
 
         var logger = await loggerRepository.ObterJogoLoggerAsync(jogoLocal.IdJogo, cancellationToken);
-        return CatalogoMapper.ToDetalhesResponse(jogoLocal, logger, ofertaTemporaria);
+        var distribuicao = postRepository is not null
+            ? await postRepository.ObterDistribuicaoFogueirasJogoAsync(jogoLocal.IdJogo, cancellationToken)
+            : null;
+        var relacionados = await ObterJogosRelacionadosInternoAsync(jogoLocal, cancellationToken);
+
+        return CatalogoMapper.ToDetalhesResponse(jogoLocal, logger, ofertaTemporaria, distribuicao, relacionados);
     }
 
     public async Task<TendenciasGenerosResponseDto> ObterTendenciasGenerosAsync(
@@ -312,6 +338,95 @@ public class CatalogoService(
             .ToList();
     }
 
+    public async Task<DescobertaCatalogoResponseDto> ObterJogosAleatoriosAsync(
+        ObterJogosAleatoriosRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request.Limite <= 0 || request.Limite > 50)
+        {
+            throw new ValidationException("O limite deve estar entre 1 e 50 jogos.");
+        }
+
+        var algoritmoEscolhido = algoritmoCuradoriaFactory.Criar(request.Algoritmo);
+        var jogosLocais = request.ForcarFallbackSteam
+            ? []
+            : (await catalogoRepository.ListarCatalogoLocalAsync(Math.Max(60, request.Limite * 2), cancellationToken)).ToList();
+
+        var candidatos = new List<(JogoCatalogoRespostDto Jogo, double PesoRelevancia)>();
+        var ofertasFallback = new Dictionary<int, OfertaJogoSteamDto>();
+        string origemDados;
+
+        if (!request.ForcarFallbackSteam && jogosLocais.Count >= request.Limite)
+        {
+            origemDados = "banco-local";
+            candidatos.AddRange(jogosLocais.Select(j => (j, 1.0)));
+        }
+        else
+        {
+            var poolSteam = await ProvedorFallbackSteam.ObterPoolAsync(
+                catalogoRepository,
+                steamStoreService,
+                cacheService,
+                cancellationToken);
+
+            foreach (var item in poolSteam)
+            {
+                if (item.Oferta is not null)
+                {
+                    ofertasFallback[item.Jogo.SteamAppId] = item.Oferta;
+                }
+            }
+
+            if (jogosLocais.Count == 0)
+            {
+                origemDados = "steam-fallback";
+                candidatos.AddRange(poolSteam.Select(p => (p.Jogo, p.PesoRelevanciaFonte)));
+            }
+            else
+            {
+                origemDados = poolSteam.Count > 0 ? "hibrido" : "banco-local";
+                var steamIdsLocais = jogosLocais.Select(j => j.SteamAppId).ToHashSet();
+                candidatos.AddRange(jogosLocais.Select(j => (j, 1.0)));
+                candidatos.AddRange(
+                    poolSteam
+                        .Where(p => !steamIdsLocais.Contains(p.Jogo.SteamAppId))
+                        .Select(p => (p.Jogo, p.PesoRelevanciaFonte)));
+            }
+        }
+
+        var todosJogos = candidatos.Select(c => c.Jogo).ToList();
+        var contextoBase = await MontarContextoCuradoriaAsync(
+            todosJogos.Where(j => j.IdJogo > 0).ToList(),
+            hidratarOfertasExpiradas: false,
+            cancellationToken);
+
+        var ofertasMescladas = new Dictionary<int, OfertaJogoSteamDto>(ofertasFallback);
+        foreach (var kv in contextoBase.OfertasPorSteamAppId)
+        {
+            ofertasMescladas[kv.Key] = kv.Value;
+        }
+
+        var contexto = new ContextoCuradoria
+        {
+            JogoLoggersPorJogo = contextoBase.JogoLoggersPorJogo,
+            GeneroLoggers = contextoBase.GeneroLoggers,
+            OfertasPorSteamAppId = ofertasMescladas
+        };
+
+        var selecionados = ProvedorFallbackSteam
+            .OrdenarComRelevanciaEAleatoriedade(candidatos, algoritmoEscolhido, contexto)
+            .Take(request.Limite)
+            .ToList();
+
+        return new DescobertaCatalogoResponseDto
+        {
+            OrigemDados = origemDados,
+            AlgoritmoAplicado = algoritmoEscolhido.ChaveExibicao,
+            TotalResultados = selecionados.Count,
+            Itens = selecionados
+        };
+    }
+
     internal static OfertaJogoSteamDto ExtrairOfertaTemporaria(DetalhesJogoSteamDto detalhes) => new()
     {
         SteamAppId = detalhes.SteamAppId,
@@ -322,23 +437,51 @@ public class CatalogoService(
         ConsultadoEm = DateTime.UtcNow
     };
 
-    private async Task HidratarCandidatosDaSteamAsync(
+    private async Task<HashSet<int>> HidratarCandidatosDaSteamAsync(
         string jogoBuscado,
+        TipoBuscaCatalogo tipoBusca,
         Dictionary<int, JogoCatalogoRespostDto> todosCandidatos,
         bool temFallbackLocal,
         CancellationToken cancellationToken)
     {
+        var idsEncontrados = new HashSet<int>();
+
         try
         {
             var itensSteam = await steamStoreService.BuscarJogosAsync(jogoBuscado, cancellationToken);
-            var ineditos = itensSteam
+            foreach (var item in itensSteam)
+            {
+                idsEncontrados.Add(item.SteamAppId);
+            }
+
+            var idsParaHidratar = itensSteam
                 .Where(i => !todosCandidatos.ContainsKey(i.SteamAppId))
+                .Select(i => i.SteamAppId)
+                .ToList();
+
+            if (tipoBusca == TipoBuscaCatalogo.Ano && idsParaHidratar.Count < MaximoHidratacoesSteamPorBusca)
+            {
+                var destaques = await steamStoreService.ObterDestaquesAsync(cancellationToken);
+                var idsVitrine = destaques.Lancamentos
+                    .Concat(destaques.MaisVendidos)
+                    .Select(i => i.SteamAppId)
+                    .Where(id => !todosCandidatos.ContainsKey(id) && !idsParaHidratar.Contains(id));
+                idsParaHidratar.AddRange(idsVitrine);
+            }
+
+            var loteIds = idsParaHidratar
+                .Distinct()
                 .Take(MaximoHidratacoesSteamPorBusca)
                 .ToList();
 
-            foreach (var item in ineditos)
+            var tarefasDetalhes = loteIds
+                .Select(appId => steamStoreService.ObterDetalhesJogoAsync(appId, cancellationToken))
+                .ToList();
+
+            var detalhesObtidos = await Task.WhenAll(tarefasDetalhes);
+
+            foreach (var detalhes in detalhesObtidos)
             {
-                var detalhes = await steamStoreService.ObterDetalhesJogoAsync(item.SteamAppId, cancellationToken);
                 if (detalhes is not null)
                 {
                     var salvo = await catalogoRepository.SalvarOuAtualizarAsync(detalhes, cancellationToken);
@@ -353,6 +496,8 @@ public class CatalogoService(
         {
             // Se a Steam falhar mas já temos candidatos locais no SQL Server, retorna os locais com resiliência.
         }
+
+        return idsEncontrados;
     }
 
     private async Task<ContextoCuradoria> MontarContextoCuradoriaAsync(
@@ -416,7 +561,8 @@ public class CatalogoService(
                 if (mapaJogosLocais.TryGetValue(item.SteamAppId, out var jogoLocal))
                 {
                     var score = algoritmo.CalcularPontuacao(jogoLocal, 1.0, contexto);
-                    return CatalogoMapper.ToItemVitrineResponse(item, score);
+                    var loggerLocal = contexto.ObterJogoLogger(jogoLocal.IdJogo);
+                    return CatalogoMapper.ToItemVitrineResponse(item, score, jogoLocal, loggerLocal);
                 }
 
                 var jogoTemporario = new JogoCatalogoRespostDto
@@ -437,6 +583,54 @@ public class CatalogoService(
             })
             .OrderByDescending(i => i.PontuacaoCuradoria)
             .ThenBy(i => i.Nome)
+            .ToList();
+    }
+
+    private async Task<IReadOnlyList<JogoResumoResponseDto>> ObterJogosRelacionadosInternoAsync(
+        JogoCatalogoRespostDto jogoBase,
+        CancellationToken cancellationToken)
+    {
+        var candidatos = await catalogoRepository.ListarCatalogoLocalAsync(40, cancellationToken);
+        var outros = candidatos.Where(j => j.IdJogo != jogoBase.IdJogo).ToList();
+        if (outros.Count == 0)
+        {
+            return [];
+        }
+
+        var setGenerosBase = jogoBase.Generos.ToHashSet();
+        var selecionados = outros
+            .Select(j => new
+            {
+                Jogo = j,
+                Afinidade = setGenerosBase.Count > 0
+                    ? j.Generos.Count(g => setGenerosBase.Contains(g))
+                    : 1
+            })
+            .Where(x => x.Afinidade > 0 || setGenerosBase.Count == 0)
+            .OrderByDescending(x => x.Afinidade)
+            .ThenByDescending(x => x.Jogo.MediaFogueiras)
+            .ThenByDescending(x => x.Jogo.TotalAvaliacoes)
+            .ThenBy(x => x.Jogo.Nome)
+            .Take(6)
+            .Select(x => x.Jogo)
+            .ToList();
+
+        if (selecionados.Count == 0)
+        {
+            selecionados = outros.Take(6).ToList();
+        }
+
+        var loggers = await loggerRepository.ObterJogoLoggersPorJogosAsync(selecionados.Select(j => j.IdJogo), cancellationToken);
+
+        return selecionados
+            .Select(j =>
+            {
+                loggers.TryGetValue(j.IdJogo, out var logger);
+                var score = ContextoCuradoria.CalcularForcaJogoLogger(logger);
+                var media = ContextoCuradoria.CalcularMediaFogueiras(logger);
+                var total = logger is { TotalAvaliacoes: > 0 } ? (int)logger.TotalAvaliacoes : j.TotalAvaliacoes;
+                return CatalogoMapper.ToResumoResponse(j, score, media, oferta: null, totalAvaliacoesOverride: total);
+            })
             .ToList();
     }
 }
