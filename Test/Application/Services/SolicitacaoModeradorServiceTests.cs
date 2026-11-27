@@ -1,5 +1,6 @@
 using Application.Dtos.Moderacao.Requests;
 using Application.Services;
+using Application.Utils;
 using Domain.Enum;
 using Domain.Exceptions.Common;
 using Domain.Interfaces.Repository;
@@ -23,7 +24,9 @@ public class SolicitacaoModeradorServiceTests
             Task.FromResult(Posts.FirstOrDefault(p => p.IdPost == idPost));
 
         public Task<bool> ExisteSolicitacaoAbertaAsync(int idUsuarioSolicitante) =>
-            Task.FromResult(Solicitacoes.Any(s => s.IdUsuarioSolicitante == idUsuarioSolicitante && s.EstaAberta()));
+            Task.FromResult(Solicitacoes.Any(s =>
+                s.IdUsuarioSolicitante == idUsuarioSolicitante &&
+                RegrasModeracaoUtil.SolicitacaoEstaAberta(s.Status)));
 
         public Task<SolicitacaoModerador?> ObterPorIdAsync(int idSolicitacao) =>
             Task.FromResult(Solicitacoes.FirstOrDefault(s => s.Id == idSolicitacao));
@@ -39,7 +42,7 @@ public class SolicitacaoModeradorServiceTests
             IEnumerable<SolicitacaoModerador> query = Solicitacoes;
             query = status.HasValue
                 ? query.Where(s => s.Status == status.Value)
-                : query.Where(s => s.EstaAberta());
+                : query.Where(s => RegrasModeracaoUtil.SolicitacaoEstaAberta(s.Status));
 
             return Task.FromResult<IReadOnlyList<SolicitacaoModerador>>([.. query.OrderBy(s => s.DataCriacao)]);
         }

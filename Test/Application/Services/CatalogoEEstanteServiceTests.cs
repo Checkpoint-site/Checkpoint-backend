@@ -47,6 +47,9 @@ public class CatalogoEEstanteServiceTests
         public Task<IReadOnlyList<JogoCatalogoRespostDto>> BuscarCandidatosLocaisAsync(BuscarCandidatosLocaisCommandDto command, CancellationToken ct = default) =>
             Task.FromResult<IReadOnlyList<JogoCatalogoRespostDto>>(Jogos.ToList());
 
+        public Task<IReadOnlyList<JogoCatalogoRespostDto>> ListarCatalogoLocalAsync(int limite = 60, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<JogoCatalogoRespostDto>>(Jogos.Take(limite).ToList());
+
         public Task<JogoCatalogoRespostDto> SalvarOuAtualizarAsync(DetalhesJogoSteamDto d, CancellationToken ct = default)
         {
             var indice = Jogos.FindIndex(j => j.SteamAppId == d.SteamAppId);
@@ -203,6 +206,13 @@ public class CatalogoEEstanteServiceTests
 
             return Task.CompletedTask;
         }
+
+        public Task SincronizarAvaliacoesJogoEUsuarioAsync(
+            int idJogo,
+            int idUsuario,
+            IReadOnlyList<Generos> generosJogo,
+            int deltaPostsGenero = 0,
+            CancellationToken ct = default) => Task.CompletedTask;
 
         public Task<IReadOnlyList<UsuarioPopularComunidadeDto>> ObterUsuariosPopularesAsync(int limite = 10, CancellationToken ct = default) =>
             Task.FromResult<IReadOnlyList<UsuarioPopularComunidadeDto>>(Populares.Take(limite).ToList());

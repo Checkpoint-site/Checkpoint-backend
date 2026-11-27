@@ -20,6 +20,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Curtida> Curtidas { get; set; }
     public DbSet<CurtidaPost> CurtidasPosts { get; set; }
     public DbSet<CurtidaComentario> CurtidasComentarios { get; set; }
+    public DbSet<RegistroDiario> RegistrosDiario { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

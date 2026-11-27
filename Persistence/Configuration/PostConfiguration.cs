@@ -23,6 +23,17 @@ public class PostConfiguration : IEntityTypeConfiguration<Post>
             c => c.Aggregate(0, (acc, item) => HashCode.Combine(acc, (int)item)),
             c => c.ToList());
 
+        var tagsConverter = new ValueConverter<List<string>, string>(
+            v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+            v => string.IsNullOrWhiteSpace(v)
+                ? new List<string>()
+                : JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>());
+
+        var tagsComparer = new ValueComparer<List<string>>(
+            (a, b) => a != null && b != null && a.SequenceEqual(b),
+            c => c.Aggregate(0, (acc, item) => HashCode.Combine(acc, item)),
+            c => c.ToList());
+
         builder.ToTable("Posts");
 
         builder.HasKey(p => p.IdPost);
@@ -46,6 +57,19 @@ public class PostConfiguration : IEntityTypeConfiguration<Post>
             .HasColumnType("nvarchar(max)")
             .IsRequired();
 
+        builder.Property(p => p.StatusJornada)
+            .HasConversion<string>()
+            .HasMaxLength(30);
+
+        builder.Property(p => p.Tags)
+            .HasConversion(tagsConverter)
+            .Metadata.SetValueComparer(tagsComparer);
+
+        builder.Property(p => p.Tags)
+            .HasColumnType("nvarchar(max)")
+            .IsRequired()
+            .HasDefaultValueSql("'[]'");
+
         builder.Property(p => p.QuantidadeCurtidas)
             .IsRequired()
             .HasDefaultValue(0);
@@ -64,6 +88,8 @@ public class PostConfiguration : IEntityTypeConfiguration<Post>
 
         builder.Property(p => p.DataCriacao)
             .IsRequired();
+
+        builder.Property(p => p.DataAtualizacao);
 
         builder.HasOne<Usuario>()
             .WithMany()

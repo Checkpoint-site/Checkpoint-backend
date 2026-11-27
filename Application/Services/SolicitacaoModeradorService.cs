@@ -1,6 +1,7 @@
 using Application.Dtos.Moderacao.Requests;
 using Application.Dtos.Moderacao.Responses;
 using Application.Interfaces;
+using Application.Utils;
 using Domain.Enum;
 using Domain.Exceptions.Common;
 using Domain.Interfaces.Repository;
@@ -27,7 +28,7 @@ public class SolicitacaoModeradorService(ISolicitacaoModeradorRepository reposit
             throw new ForbiddenException("Contas excluídas não podem solicitar moderação.");
         }
 
-        if (usuario.EstaSuspenso())
+        if (RegrasModeracaoUtil.UsuarioEstaSuspenso(usuario))
         {
             throw new ForbiddenException("Usuários suspensos não podem solicitar acesso de moderador.");
         }
@@ -88,7 +89,7 @@ public class SolicitacaoModeradorService(ISolicitacaoModeradorRepository reposit
         var avaliador = await repository.ObterUsuarioPorIdAsync(idAvaliador)
             ?? throw new NotFoundException("Avaliador não encontrado.");
 
-        if (avaliador.ContaDeletada || avaliador.EstaSuspenso())
+        if (avaliador.ContaDeletada || RegrasModeracaoUtil.UsuarioEstaSuspenso(avaliador))
         {
             throw new ForbiddenException("Sua conta não tem permissão ativa para avaliar solicitações.");
         }
@@ -96,7 +97,7 @@ public class SolicitacaoModeradorService(ISolicitacaoModeradorRepository reposit
         var solicitacao = await repository.ObterPorIdAsync(idSolicitacao)
             ?? throw new NotFoundException("Solicitação de moderação não encontrada.");
 
-        var aprovadaDefinitivamente = solicitacao.Aprovar(avaliador.Id, avaliador.TipoPerfil);
+        var aprovadaDefinitivamente = RegrasModeracaoUtil.AprovarSolicitacao(solicitacao, avaliador.Id, avaliador.TipoPerfil);
 
         if (aprovadaDefinitivamente)
         {
@@ -121,7 +122,7 @@ public class SolicitacaoModeradorService(ISolicitacaoModeradorRepository reposit
         var avaliador = await repository.ObterUsuarioPorIdAsync(idAvaliador)
             ?? throw new NotFoundException("Avaliador não encontrado.");
 
-        if (avaliador.ContaDeletada || avaliador.EstaSuspenso())
+        if (avaliador.ContaDeletada || RegrasModeracaoUtil.UsuarioEstaSuspenso(avaliador))
         {
             throw new ForbiddenException("Sua conta não tem permissão ativa para avaliar solicitações.");
         }
@@ -129,7 +130,7 @@ public class SolicitacaoModeradorService(ISolicitacaoModeradorRepository reposit
         var solicitacao = await repository.ObterPorIdAsync(idSolicitacao)
             ?? throw new NotFoundException("Solicitação de moderação não encontrada.");
 
-        solicitacao.Recusar(avaliador.Id, avaliador.TipoPerfil, request.Motivo);
+        RegrasModeracaoUtil.RecusarSolicitacao(solicitacao, avaliador.Id, avaliador.TipoPerfil, request.Motivo);
         await repository.SalvarAlteracoesAsync();
 
         var atualizada = await repository.ObterPorIdAsync(solicitacao.Id) ?? solicitacao;
@@ -141,7 +142,7 @@ public class SolicitacaoModeradorService(ISolicitacaoModeradorRepository reposit
         var solicitacao = await repository.ObterPorIdAsync(idSolicitacao)
             ?? throw new NotFoundException("Solicitação de moderação não encontrada.");
 
-        solicitacao.Cancelar(idUsuarioSolicitante);
+        RegrasModeracaoUtil.CancelarSolicitacao(solicitacao, idUsuarioSolicitante);
         await repository.SalvarAlteracoesAsync();
 
         return MapearResposta(solicitacao);
@@ -152,7 +153,7 @@ public class SolicitacaoModeradorService(ISolicitacaoModeradorRepository reposit
         var admin = await repository.ObterUsuarioPorIdAsync(idAdmin)
             ?? throw new NotFoundException("Administrador não encontrado.");
 
-        if (admin.TipoPerfil != TipoPerfilUsuario.Admin || admin.ContaDeletada || admin.EstaSuspenso())
+        if (admin.TipoPerfil != TipoPerfilUsuario.Admin || admin.ContaDeletada || RegrasModeracaoUtil.UsuarioEstaSuspenso(admin))
         {
             throw new ForbiddenException("Apenas administradores ativos podem rebaixar moderadores.");
         }
@@ -189,7 +190,7 @@ public class SolicitacaoModeradorService(ISolicitacaoModeradorRepository reposit
 
         if (avaliador.TipoPerfil is not (TipoPerfilUsuario.Moderador or TipoPerfilUsuario.Admin)
             || avaliador.ContaDeletada
-            || avaliador.EstaSuspenso())
+            || RegrasModeracaoUtil.UsuarioEstaSuspenso(avaliador))
         {
             throw new ForbiddenException("Apenas moderadores ou administradores ativos podem alterar marcações de spoiler.");
         }
@@ -197,7 +198,7 @@ public class SolicitacaoModeradorService(ISolicitacaoModeradorRepository reposit
         var post = await repository.ObterPostPorIdAsync(idPost)
             ?? throw new NotFoundException("Post não encontrado.");
 
-        post.AlterarMarcaSpoiler(request.TemSpoiler);
+        RegrasModeracaoUtil.AlterarMarcaSpoilerPost(post, request.TemSpoiler);
         await repository.SalvarAlteracoesAsync();
 
         return new PostSpoilerResponseDto
