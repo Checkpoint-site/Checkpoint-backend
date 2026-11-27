@@ -16,7 +16,8 @@ public static class Token
         string email,
         string role = "Regular",
         string? chaveSecreta = null,
-        int expiracaoHoras = 24)
+        int expiracaoHoras = 24,
+        string? nome = null)
     {
         string segredo = ObterChaveSecreta(chaveSecreta);
 
@@ -31,6 +32,11 @@ public static class Token
             ["iat"] = agoraUnix,
             ["exp"] = expiracaoUnix
         };
+
+        if (!string.IsNullOrWhiteSpace(nome))
+        {
+            payload["unique_name"] = nome.Trim();
+        }
 
         string headerBase64 = CodificarBase64Url(Encoding.UTF8.GetBytes(HEADER_PADRAO_JSON));
         string payloadBase64 = CodificarBase64Url(JsonSerializer.SerializeToUtf8Bytes(payload));

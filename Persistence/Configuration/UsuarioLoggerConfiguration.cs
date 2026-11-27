@@ -23,6 +23,19 @@ public class UsuarioLoggerConfiguration : IEntityTypeConfiguration<UsuarioLogger
             .IsRequired()
             .HasDefaultValue(0L);
 
+        builder.Property(u => u.SomaFogueirasDadas)
+            .IsRequired()
+            .HasDefaultValue(0.0);
+
+        builder.Property(u => u.TotalAvaliacoes)
+            .HasConversion<long>()
+            .IsRequired()
+            .HasDefaultValue(0L);
+
+        builder.Property(u => u.MediaFogueiras)
+            .IsRequired()
+            .HasDefaultValue(0.0);
+
         builder.HasOne<Usuario>()
             .WithOne()
             .HasForeignKey<UsuarioLogger>(u => u.IdUsuario)

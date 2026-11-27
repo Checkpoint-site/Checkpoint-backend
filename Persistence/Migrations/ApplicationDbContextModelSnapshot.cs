@@ -57,6 +57,11 @@ namespace Persistence.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IdComentario"));
 
+                    b.Property<bool>("ComentarioDeletado")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("Conteudo")
                         .IsRequired()
                         .HasMaxLength(2000)
@@ -75,6 +80,11 @@ namespace Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0);
+
+                    b.Property<bool>("TemSpoiler")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.HasKey("IdComentario");
 
@@ -197,6 +207,11 @@ namespace Persistence.Migrations
                         .HasMaxLength(600)
                         .HasColumnType("nvarchar(600)");
 
+                    b.Property<double>("MediaFogueiras")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("float")
+                        .HasDefaultValue(0.0);
+
                     b.Property<string>("Nome")
                         .IsRequired()
                         .HasMaxLength(250)
@@ -215,6 +230,11 @@ namespace Persistence.Migrations
 
                     b.Property<int>("SteamAppId")
                         .HasColumnType("int");
+
+                    b.Property<int>("TotalAvaliacoes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
 
                     b.Property<int>("TotalRecomendacoes")
                         .ValueGeneratedOnAdd()
@@ -248,11 +268,14 @@ namespace Persistence.Migrations
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
 
+                    b.Property<DateTime?>("DataAtualizacao")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime>("DataCriacao")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("Fogueiras")
-                        .HasColumnType("int");
+                    b.Property<double>("Fogueiras")
+                        .HasColumnType("float");
 
                     b.Property<int>("IdJogo")
                         .HasColumnType("int");
@@ -275,6 +298,16 @@ namespace Persistence.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0);
 
+                    b.Property<string>("StatusJornada")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("Tags")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("nvarchar(max)")
+                        .HasDefaultValueSql("'[]'");
+
                     b.Property<bool>("TemSpoiler")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
@@ -296,6 +329,54 @@ namespace Persistence.Migrations
                     b.HasIndex("IdUsuario", "PostDeletado");
 
                     b.ToTable("Posts", (string)null);
+                });
+
+            modelBuilder.Entity("Domain.Model.RegistroDiario", b =>
+                {
+                    b.Property<int>("IdRegistroDiario")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IdRegistroDiario"));
+
+                    b.Property<DateTime>("DataAtualizacao")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("DataCriacao")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("IdJogo")
+                        .HasColumnType("int");
+
+                    b.Property<int>("IdUsuario")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("Jogado")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<double?>("NotaFogueiras")
+                        .HasColumnType("float");
+
+                    b.Property<string>("Status")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("Tags")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("nvarchar(max)")
+                        .HasDefaultValueSql("'[]'");
+
+                    b.HasKey("IdRegistroDiario");
+
+                    b.HasIndex("IdJogo");
+
+                    b.HasIndex("IdUsuario", "IdJogo")
+                        .IsUnique();
+
+                    b.ToTable("RegistrosDiario", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Model.SolicitacaoModerador", b =>
@@ -515,12 +596,22 @@ namespace Persistence.Migrations
                     b.Property<int>("IdJogo")
                         .HasColumnType("int");
 
+                    b.Property<double>("MediaFogueiras")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("float")
+                        .HasDefaultValue(0.0);
+
                     b.Property<long>("PresencaPretendeJogar")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .HasDefaultValue(0L);
 
-                    b.Property<long>("SomaFogueiras")
+                    b.Property<double>("SomaFogueiras")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("float")
+                        .HasDefaultValue(0.0);
+
+                    b.Property<long>("TotalAvaliacoes")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .HasDefaultValue(0L);
@@ -544,7 +635,22 @@ namespace Persistence.Migrations
                     b.Property<int>("IdUsuario")
                         .HasColumnType("int");
 
+                    b.Property<double>("MediaFogueiras")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("float")
+                        .HasDefaultValue(0.0);
+
                     b.Property<long>("QuantidadeSeguidores")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L);
+
+                    b.Property<double>("SomaFogueirasDadas")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("float")
+                        .HasDefaultValue(0.0);
+
+                    b.Property<long>("TotalAvaliacoes")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .HasDefaultValue(0L);
@@ -595,6 +701,21 @@ namespace Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("IdJogo")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Domain.Model.Usuario", null)
+                        .WithMany()
+                        .HasForeignKey("IdUsuario")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Domain.Model.RegistroDiario", b =>
+                {
+                    b.HasOne("Domain.Model.Jogo", null)
+                        .WithMany()
+                        .HasForeignKey("IdJogo")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("Domain.Model.Usuario", null)

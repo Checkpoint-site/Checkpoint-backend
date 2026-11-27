@@ -23,12 +23,20 @@ public class ContextoCuradoria
 
     public static double CalcularMediaFogueiras(JogoLoggerRespostDto? logger)
     {
-        if (logger is null || logger.PresencaPost == 0)
+        if (logger is null)
         {
             return 0.0;
         }
 
-        var media = (double)logger.SomaFogueiras / logger.PresencaPost;
+        var divisor = logger.TotalAvaliacoes > 0 ? logger.TotalAvaliacoes : logger.PresencaPost;
+        if (divisor == 0)
+        {
+            return logger.MediaFogueiras > 0
+                ? Math.Round(Math.Clamp(logger.MediaFogueiras, 0.0, 5.0), 2)
+                : 0.0;
+        }
+
+        var media = logger.SomaFogueiras / divisor;
         return Math.Round(Math.Clamp(media, 0.0, 5.0), 2);
     }
 

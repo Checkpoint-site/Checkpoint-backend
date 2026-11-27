@@ -38,6 +38,8 @@ public static class InjecaoDependencia
         services.AddScoped<ICatalogoRepository, CatalogoRepository>();
         services.AddScoped<IEstanteRepository, EstanteRepository>();
         services.AddScoped<IEngajamentoLoggerRepository, EngajamentoLoggerRepository>();
+        services.AddScoped<IPostRepository, PostRepository>();
+        services.AddScoped<IDiarioRepository, DiarioRepository>();
         services.AddScoped<ICatalogoCacheService, RedisCatalogoCacheService>();
 
         services.AddHttpClient<ISteamStoreService, SteamStoreService>(client =>
@@ -63,6 +65,9 @@ public static class InjecaoDependencia
 
         services.AddScoped<ICatalogoService, CatalogoService>();
         services.AddScoped<IEstanteService, EstanteService>();
+        services.AddScoped<IPostService, PostService>();
+        services.AddScoped<IDiarioService, DiarioService>();
+        services.AddScoped<IVitrineService, VitrineService>();
 
         return services;
     }

@@ -55,6 +55,29 @@ public static class CatalogoEndpoint
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status502BadGateway);
 
+        group.MapGet("/aleatorios", async (
+            int? limite,
+            string? algoritmo,
+            bool? forcarFallbackSteam,
+            ICatalogoService service,
+            CancellationToken cancellationToken) =>
+        {
+            var request = new ObterJogosAleatoriosRequestDto
+            {
+                Limite = limite ?? 12,
+                Algoritmo = algoritmo,
+                ForcarFallbackSteam = forcarFallbackSteam ?? false
+            };
+
+            var resposta = await service.ObterJogosAleatoriosAsync(request, cancellationToken);
+            return TypedResults.Ok(resposta);
+        })
+        .WithName("ObterJogosAleatoriosRelevantes")
+        .WithSummary("Retorna jogos aleatórios ponderados por relevância (com fallback automático na Steam caso o banco esteja vazio)")
+        .WithDescription("Seleciona jogos combinando curadoria de relevância (popularidade, tendência ou custo-benefício) e amostragem aleatória controlada. Quando não há jogos suficientes no banco local, consulta automaticamente o pool relevante da Steam sem poluir o banco.")
+        .Produces<DescobertaCatalogoResponseDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest);
+
         group.MapGet("/tendencias/generos", async (
             ICatalogoService service,
             CancellationToken cancellationToken) =>

@@ -28,6 +28,8 @@ public class CatalogoRepository(ApplicationDbContext context) : ICatalogoReposit
         TotalRecomendacoes = j.TotalRecomendacoes,
         Gratuito = j.Gratuito,
         EmBreve = j.EmBreve,
+        MediaFogueiras = j.MediaFogueiras,
+        TotalAvaliacoes = j.TotalAvaliacoes,
         SincronizadoEm = j.SincronizadoEm
     };
 
@@ -95,6 +97,21 @@ public class CatalogoRepository(ApplicationDbContext context) : ICatalogoReposit
 
         return await query
             .Take(50)
+            .Select(ProjecaoJogoRespost)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<JogoCatalogoRespostDto>> ListarCatalogoLocalAsync(int limite = 60, CancellationToken cancellationToken = default)
+    {
+        var quantidade = Math.Clamp(limite, 1, 200);
+
+        return await context.Jogos
+            .AsNoTracking()
+            .OrderByDescending(j => j.TotalAvaliacoes)
+            .ThenByDescending(j => j.MediaFogueiras)
+            .ThenByDescending(j => j.TotalRecomendacoes)
+            .ThenBy(j => j.Nome)
+            .Take(quantidade)
             .Select(ProjecaoJogoRespost)
             .ToListAsync(cancellationToken);
     }
@@ -176,6 +193,8 @@ public class CatalogoRepository(ApplicationDbContext context) : ICatalogoReposit
             TotalRecomendacoes = existente.TotalRecomendacoes,
             Gratuito = existente.Gratuito,
             EmBreve = existente.EmBreve,
+            MediaFogueiras = existente.MediaFogueiras,
+            TotalAvaliacoes = existente.TotalAvaliacoes,
             SincronizadoEm = existente.SincronizadoEm
         };
     }

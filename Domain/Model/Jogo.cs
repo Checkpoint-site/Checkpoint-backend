@@ -18,5 +18,7 @@ public class Jogo
     public int TotalRecomendacoes { get; set; }
     public bool Gratuito { get; set; }
     public bool EmBreve { get; set; }
+    public double MediaFogueiras { get; set; } = 0.0;
+    public int TotalAvaliacoes { get; set; } = 0;
     public DateTime SincronizadoEm { get; set; } = DateTime.UtcNow;
 }

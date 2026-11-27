@@ -13,7 +13,4 @@ public class Usuario
     public DateTime? SuspensoAte { get; set; }
     public string? FotoPerfil { get; set; }
     public int QuantidadeSeguidores { get; set; } = 0;
-
-    public bool EstaSuspenso(DateTime? referenciaUtc = null) =>
-        SuspensoAte.HasValue && SuspensoAte.Value > (referenciaUtc ?? DateTime.UtcNow);
 }

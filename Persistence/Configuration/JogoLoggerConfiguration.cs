@@ -19,9 +19,17 @@ public class JogoLoggerConfiguration : IEntityTypeConfiguration<JogoLogger>
             .HasDefaultValue(0L);
 
         builder.Property(j => j.SomaFogueiras)
+            .IsRequired()
+            .HasDefaultValue(0.0);
+
+        builder.Property(j => j.TotalAvaliacoes)
             .HasConversion<long>()
             .IsRequired()
             .HasDefaultValue(0L);
+
+        builder.Property(j => j.MediaFogueiras)
+            .IsRequired()
+            .HasDefaultValue(0.0);
 
         builder.HasOne<Jogo>()
             .WithOne()

@@ -9,30 +9,35 @@ public class BuscaPorAutorStrategy : EstrategiaBuscaCatalogo
 
     public override bool AtendeCriterio(JogoCatalogoRespostDto jogo, string jogoBuscado)
     {
-        var filtro = jogoBuscado.Trim();
-        return jogo.Desenvolvedora.Contains(filtro, StringComparison.OrdinalIgnoreCase)
-            || jogo.Publicadora.Contains(filtro, StringComparison.OrdinalIgnoreCase);
+        var buscaNorm = NormalizarTextoBusca(jogoBuscado);
+        var devNorm = NormalizarTextoBusca(jogo.Desenvolvedora);
+        var pubNorm = NormalizarTextoBusca(jogo.Publicadora);
+
+        return ContemTodosOsTermos(devNorm, buscaNorm)
+            || ContemTodosOsTermos(pubNorm, buscaNorm);
     }
 
     public override double CalcularAfinidade(JogoCatalogoRespostDto jogo, string jogoBuscado)
     {
-        var filtro = jogoBuscado.Trim();
+        var buscaNorm = NormalizarTextoBusca(jogoBuscado);
+        var devNorm = NormalizarTextoBusca(jogo.Desenvolvedora);
+        var pubNorm = NormalizarTextoBusca(jogo.Publicadora);
 
-        if (jogo.Desenvolvedora.Equals(filtro, StringComparison.OrdinalIgnoreCase))
+        if (devNorm.Equals(buscaNorm, StringComparison.Ordinal))
         {
             return 1.0;
         }
 
-        if (jogo.Desenvolvedora.Contains(filtro, StringComparison.OrdinalIgnoreCase))
+        if (ContemTodosOsTermos(devNorm, buscaNorm))
         {
             return 0.9;
         }
 
-        if (jogo.Publicadora.Equals(filtro, StringComparison.OrdinalIgnoreCase))
+        if (pubNorm.Equals(buscaNorm, StringComparison.Ordinal))
         {
             return 0.85;
         }
 
-        return jogo.Publicadora.Contains(filtro, StringComparison.OrdinalIgnoreCase) ? 0.7 : 0.0;
+        return ContemTodosOsTermos(pubNorm, buscaNorm) ? 0.7 : 0.0;
     }
 }

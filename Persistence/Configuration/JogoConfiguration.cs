@@ -82,6 +82,14 @@ public class JogoConfiguration : IEntityTypeConfiguration<Jogo>
             .IsRequired()
             .HasDefaultValue(0);
 
+        builder.Property(j => j.MediaFogueiras)
+            .IsRequired()
+            .HasDefaultValue(0.0);
+
+        builder.Property(j => j.TotalAvaliacoes)
+            .IsRequired()
+            .HasDefaultValue(0);
+
         builder.Property(j => j.SincronizadoEm)
             .IsRequired();
     }

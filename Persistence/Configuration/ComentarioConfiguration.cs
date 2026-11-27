@@ -20,6 +20,14 @@ public class ComentarioConfiguration : IEntityTypeConfiguration<Comentario>
             .IsRequired()
             .HasDefaultValue(0);
 
+        builder.Property(c => c.TemSpoiler)
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        builder.Property(c => c.ComentarioDeletado)
+            .IsRequired()
+            .HasDefaultValue(false);
+
         builder.Property(c => c.DataCriacao)
             .IsRequired();
 

@@ -44,6 +44,8 @@ public class EngajamentoLoggerRepository(ApplicationDbContext context) : IEngaja
                 PresencaFavoritos = j.PresencaFavoritos,
                 PresencaPretendeJogar = j.PresencaPretendeJogar,
                 SomaFogueiras = j.SomaFogueiras,
+                TotalAvaliacoes = j.TotalAvaliacoes,
+                MediaFogueiras = j.MediaFogueiras,
                 UltimaAtualizacao = j.UltimaAtualizacao
             })
             .FirstOrDefaultAsync(cancellationToken);
@@ -70,6 +72,8 @@ public class EngajamentoLoggerRepository(ApplicationDbContext context) : IEngaja
                 PresencaFavoritos = j.PresencaFavoritos,
                 PresencaPretendeJogar = j.PresencaPretendeJogar,
                 SomaFogueiras = j.SomaFogueiras,
+                TotalAvaliacoes = j.TotalAvaliacoes,
+                MediaFogueiras = j.MediaFogueiras,
                 UltimaAtualizacao = j.UltimaAtualizacao
             })
             .ToDictionaryAsync(j => j.IdJogo, cancellationToken);
@@ -94,6 +98,108 @@ public class EngajamentoLoggerRepository(ApplicationDbContext context) : IEngaja
             generoLogger.PresencaFavoritos = AplicarDelta(generoLogger.PresencaFavoritos, command.DeltaFavoritosGenero);
             generoLogger.PresencaPretendeJogar = AplicarDelta(generoLogger.PresencaPretendeJogar, command.DeltaPretendeJogarGenero);
             generoLogger.UltimaAtualizacao = agora;
+        }
+
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task SincronizarAvaliacoesJogoEUsuarioAsync(
+        int idJogo,
+        int idUsuario,
+        IReadOnlyList<Generos> generosJogo,
+        int deltaPostsGenero = 0,
+        CancellationToken cancellationToken = default)
+    {
+        var agora = DateTime.UtcNow;
+
+        var notasDiarioJogo = await context.RegistrosDiario
+            .AsNoTracking()
+            .Where(r => r.IdJogo == idJogo && r.NotaFogueiras != null)
+            .Select(r => new { r.IdUsuario, Nota = r.NotaFogueiras!.Value })
+            .ToListAsync(cancellationToken);
+
+        var postsAtivosJogo = await context.Posts
+            .AsNoTracking()
+            .Where(p => p.IdJogo == idJogo && !p.PostDeletado)
+            .OrderByDescending(p => p.DataCriacao)
+            .Select(p => new { p.IdUsuario, p.Fogueiras })
+            .ToListAsync(cancellationToken);
+
+        var mapaNotasJogo = new Dictionary<int, double>();
+        foreach (var item in notasDiarioJogo)
+        {
+            mapaNotasJogo[item.IdUsuario] = item.Nota;
+        }
+
+        foreach (var post in postsAtivosJogo)
+        {
+            if (!mapaNotasJogo.ContainsKey(post.IdUsuario))
+            {
+                mapaNotasJogo[post.IdUsuario] = post.Fogueiras;
+            }
+        }
+
+        var somaFogueirasJogo = Math.Round(mapaNotasJogo.Values.Sum(), 2);
+        var totalAvaliacoesJogo = mapaNotasJogo.Count;
+
+        var jogo = await context.Jogos.FirstOrDefaultAsync(j => j.IdJogo == idJogo, cancellationToken);
+        if (jogo is not null)
+        {
+            jogo.TotalAvaliacoes = Math.Max(0, totalAvaliacoesJogo);
+            jogo.MediaFogueiras = CalcularMediaFogueiras(somaFogueirasJogo, (ulong)jogo.TotalAvaliacoes);
+        }
+
+        var jogoLogger = await ObterOuCriarJogoLoggerInternoAsync(idJogo, cancellationToken);
+        jogoLogger.PresencaPost = (ulong)postsAtivosJogo.Count;
+        jogoLogger.SomaFogueiras = somaFogueirasJogo;
+        jogoLogger.TotalAvaliacoes = (ulong)totalAvaliacoesJogo;
+        var divisorJogo = jogoLogger.TotalAvaliacoes > 0 ? jogoLogger.TotalAvaliacoes : jogoLogger.PresencaPost;
+        jogoLogger.MediaFogueiras = CalcularMediaFogueiras(jogoLogger.SomaFogueiras, divisorJogo);
+        jogoLogger.UltimaAtualizacao = agora;
+
+        var notasDiarioUsuario = await context.RegistrosDiario
+            .AsNoTracking()
+            .Where(r => r.IdUsuario == idUsuario && r.NotaFogueiras != null)
+            .Select(r => new { r.IdJogo, Nota = r.NotaFogueiras!.Value })
+            .ToListAsync(cancellationToken);
+
+        var postsAtivosUsuario = await context.Posts
+            .AsNoTracking()
+            .Where(p => p.IdUsuario == idUsuario && !p.PostDeletado)
+            .OrderByDescending(p => p.DataCriacao)
+            .Select(p => new { p.IdJogo, p.Fogueiras })
+            .ToListAsync(cancellationToken);
+
+        var mapaNotasUsuario = new Dictionary<int, double>();
+        foreach (var item in notasDiarioUsuario)
+        {
+            mapaNotasUsuario[item.IdJogo] = item.Nota;
+        }
+
+        foreach (var post in postsAtivosUsuario)
+        {
+            if (!mapaNotasUsuario.ContainsKey(post.IdJogo))
+            {
+                mapaNotasUsuario[post.IdJogo] = post.Fogueiras;
+            }
+        }
+
+        var usuarioLogger = await ObterOuCriarUsuarioLoggerInternoAsync(idUsuario, cancellationToken);
+        usuarioLogger.PresencaPost = (ulong)postsAtivosUsuario.Count;
+        usuarioLogger.SomaFogueirasDadas = Math.Round(mapaNotasUsuario.Values.Sum(), 2);
+        usuarioLogger.TotalAvaliacoes = (ulong)mapaNotasUsuario.Count;
+        var divisorUsuario = usuarioLogger.TotalAvaliacoes > 0 ? usuarioLogger.TotalAvaliacoes : usuarioLogger.PresencaPost;
+        usuarioLogger.MediaFogueiras = CalcularMediaFogueiras(usuarioLogger.SomaFogueirasDadas, divisorUsuario);
+        usuarioLogger.UltimaAtualizacao = agora;
+
+        if (deltaPostsGenero != 0)
+        {
+            foreach (var genero in generosJogo.Distinct())
+            {
+                var generoLogger = await ObterOuCriarGeneroLoggerInternoAsync(genero, cancellationToken);
+                generoLogger.PresencaPost = AplicarDelta(generoLogger.PresencaPost, deltaPostsGenero);
+                generoLogger.UltimaAtualizacao = agora;
+            }
         }
 
         await context.SaveChangesAsync(cancellationToken);
@@ -163,6 +269,7 @@ public class EngajamentoLoggerRepository(ApplicationDbContext context) : IEngaja
                 {
                     IdPost = post.IdPost,
                     IdJogo = post.IdJogo,
+                    SteamAppId = jogo.SteamAppId,
                     NomeJogo = jogo.Nome,
                     Titulo = post.Titulo,
                     Fogueiras = post.Fogueiras,
@@ -291,4 +398,9 @@ public class EngajamentoLoggerRepository(ApplicationDbContext context) : IEngaja
         var decrescimo = (ulong)(-delta);
         return atual > decrescimo ? atual - decrescimo : 0UL;
     }
+
+    private static double CalcularMediaFogueiras(double soma, ulong divisor) =>
+        divisor > 0
+            ? Math.Round(Math.Clamp(soma / divisor, 0.0, 5.0), 2)
+            : 0.0;
 }

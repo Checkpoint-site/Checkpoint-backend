@@ -18,5 +18,7 @@ public record JogoCatalogoRespostDto
     public int TotalRecomendacoes { get; init; }
     public bool Gratuito { get; init; }
     public bool EmBreve { get; init; }
+    public double MediaFogueiras { get; init; }
+    public int TotalAvaliacoes { get; init; }
     public DateTime SincronizadoEm { get; init; } = DateTime.UtcNow;
 }

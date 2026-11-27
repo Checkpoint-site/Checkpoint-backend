@@ -5,6 +5,7 @@ public record JogoResumoResponseDto
     public required int IdJogo { get; init; }
     public required int SteamAppId { get; init; }
     public required string Nome { get; init; }
+    public string Descricao { get; init; } = string.Empty;
     public required string Imagem { get; init; }
     public required string Desenvolvedora { get; init; }
     public required string Publicadora { get; init; }
@@ -17,5 +18,6 @@ public record JogoResumoResponseDto
     public int PercentualDesconto { get; init; }
     public double PontuacaoCuradoria { get; init; }
     public double MediaFogueiras { get; init; }
+    public int TotalAvaliacoes { get; init; }
     public required IReadOnlyList<string> Generos { get; init; }
 }

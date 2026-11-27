@@ -1,8 +1,11 @@
 using Api.Endpoints.Cadastro;
 using Api.Endpoints.Catalogo;
+using Api.Endpoints.Diario;
 using Api.Endpoints.Estantes;
 using Api.Endpoints.Login;
 using Api.Endpoints.Moderacao;
+using Api.Endpoints.Posts;
+using Api.Endpoints.Vitrine;
 using Api.Extension;
 using Api.Middleware;
 using DotNetEnv;
@@ -13,6 +16,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddEndpointsApiExplorer()
                 .AddConfiguracaoSwagger()
+                .AddConfiguracaoCors(builder.Configuration)
                 .AddConexaoBanco(builder.Configuration)
                 .AddConexaoRedis(builder.Configuration)
                 .AddInjecaoDependencia()
@@ -27,8 +31,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+else
+{
+    app.UseHttpsRedirection();
+}
 
-app.UseHttpsRedirection();
+app.UseCors(ConfiguracaoCors.NomePoliticaPadrao);
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -41,5 +49,8 @@ api.MapCadastroEndpoint();
 api.MapModeracaoEndpoint();
 api.MapCatalogoEndpoint();
 api.MapEstanteEndpoint();
+api.MapPostEndpoint();
+api.MapDiarioEndpoint();
+api.MapVitrineEndpoint();
 
 app.Run();
